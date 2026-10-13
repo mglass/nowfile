@@ -22,3 +22,4 @@ Append only. Date, decision, why, alternatives rejected.
 - 2026-10-13: `mike` is on the reserved list; reserved names are issued only through `nowfile admin create-user`. Why: holds the name against squatting before launch without a special case in signup.
 - 2026-10-13: Signing up with an email that already has an account sends that account a sign-in link and shows the generic "check your email" page. Why: the form must not reveal which addresses have accounts.
 - 2026-10-13: No inactivity pruning job in phase 1. Why: docs/phase-1.md does not list it; it belongs with the first real users.
+- 2026-10-13: The write API and the account page share one slot-write function (store.WriteSlot and ClearSlot) that owns validation, expiry rules, and the transaction. Transport can differ, the code path cannot. Why: Mike's call after the account page was found calling the store with its own validation. Side effect accepted: values are trimmed on both paths.
