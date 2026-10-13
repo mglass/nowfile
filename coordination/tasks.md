@@ -2,7 +2,7 @@
 
 ## Now
 
-- Mike: register nowfile.org
+- Mike: review docs/format.md
 - Finalize docs/format.md (draft 0 → 1) after Mike reads it
 - Phase 1 build: server, finger listener, HTTP, accounts, Status, write API, CLI
 
