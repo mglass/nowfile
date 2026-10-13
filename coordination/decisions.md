@@ -23,3 +23,5 @@ Append only. Date, decision, why, alternatives rejected.
 - 2026-10-13: Signing up with an email that already has an account sends that account a sign-in link and shows the generic "check your email" page. Why: the form must not reveal which addresses have accounts.
 - 2026-10-13: No inactivity pruning job in phase 1. Why: docs/phase-1.md does not list it; it belongs with the first real users.
 - 2026-10-13: The write API and the account page share one slot-write function (store.WriteSlot and ClearSlot) that owns validation, expiry rules, and the transaction. Transport can differ, the code path cannot. Why: Mike's call after the account page was found calling the store with its own validation. Side effect accepted: values are trimmed on both paths.
+- 2026-10-13: Caddy on the prod box pins DNS resolvers (108.61.10.10, 1.1.1.1) in its compose file. Why: Docker forwarded the container's DNS to Tailscale MagicDNS, which SERVFAILs public names, so no ACME issuer was reachable.
+- 2026-10-13: www.nowfile.org redirects permanently to nowfile.org rather than serving the site twice. Why: one canonical URL for link previews and finger hints.

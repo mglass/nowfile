@@ -8,7 +8,9 @@
   - [x] slice 3 web pages, accounts, magic links, account page (build-web)
   - [x] slice 4 write API, tokens, CLI, admin (build-api)
   - [x] slice 5 Dockerfile, CI to GHCR (build-deploy)
-  - [ ] deploy to glasseffect-prod-1 and DNS, with Mike
+  - [x] deploy to glasseffect-prod-1 and DNS
+  - [ ] Mike: click Verify on nowfile.org in Postmark
+  - [ ] open the repo (phase 1 closes with it)
 - Mike: DNS A records for nowfile.org and www when the coordinator asks
 
 ## Later
