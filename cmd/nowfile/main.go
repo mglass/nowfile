@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/mglass/nowfile/internal/config"
+	"github.com/mglass/nowfile/internal/finger"
 	"github.com/mglass/nowfile/internal/store"
 )
 
@@ -68,7 +69,9 @@ func run(ctx context.Context, args []string) error {
 	_ = start // remove once a listener below is wired
 
 	// Hook points. Each slice replaces its own line.
-	// TODO(finger slice): start(func(ctx context.Context) error { return finger.Serve(ctx, cfg.FingerAddr, st) })
+	start(func(ctx context.Context) error {
+		return finger.ListenAndServe(ctx, cfg.FingerAddr, finger.FromStore(st, cfg.BaseURL))
+	})
 	// TODO(web slice): start(func(ctx context.Context) error { return web.Serve(ctx, cfg, st) })
 
 	<-ctx.Done()
