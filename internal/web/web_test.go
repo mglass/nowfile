@@ -553,7 +553,7 @@ func TestAccountPage(t *testing.T) {
 		t.Errorf("six links: %d", r.code)
 	}
 
-	// Status with a preset goes through PutSlot with source "web".
+	// Status with a preset goes through WriteSlot with source "web".
 	r = post(url.Values{"action": {"status"}, "value": {"Lunch"}, "expiry": {"30m"}})
 	if r.code != http.StatusSeeOther {
 		t.Fatalf("status: %d %s", r.code, r.body)
@@ -654,12 +654,8 @@ func TestExpiry(t *testing.T) {
 			t.Errorf("%+v: %v", c, err)
 			continue
 		}
-		s := ""
-		if !got.IsZero() {
-			s = got.UTC().Format(time.RFC3339)
-		}
-		if s != c.want {
-			t.Errorf("%+v = %s", c, s)
+		if got != c.want {
+			t.Errorf("%+v = %s", c, got)
 		}
 	}
 	for _, bad := range []string{"custom", "forever"} {

@@ -283,13 +283,13 @@ func TestSlots(t *testing.T) {
 		}
 	}
 
-	if err := s.DeleteSlot(ctx, u.ID, "status"); err != nil {
+	if err := s.ClearSlot(ctx, u.ID, "status"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteSlot(ctx, u.ID, "status"); err != nil {
+	if err := s.ClearSlot(ctx, u.ID, "status"); err != nil {
 		t.Errorf("delete absent slot: %v", err)
 	}
-	if err := s.DeleteSlot(ctx, u.ID, "bogus"); !errors.Is(err, format.ErrInvalid) {
+	if err := s.ClearSlot(ctx, u.ID, "bogus"); !errors.Is(err, format.ErrInvalid) {
 		t.Errorf("delete bogus: %v", err)
 	}
 	slots, _ = s.Slots(ctx, u.ID)

@@ -1,7 +1,7 @@
 // Package web serves nowfile over HTTP: the landing page, each user's page
 // as HTML, text, and JSON, sign-up and magic-link sign-in, and the account
 // page. Every public rendering comes from one store.DocumentByName call, and
-// account-page writes go through the same store methods the write API uses.
+// account-page slot writes go through store.WriteSlot, as the write API does.
 // The write API (internal/api) is mounted on the same mux.
 package web
 

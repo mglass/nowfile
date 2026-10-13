@@ -476,26 +476,78 @@ func liveUser(ctx context.Context, tx *sql.Tx, userID int64) error {
 
 // --- slots ---
 
-// PutSlot sets one slot, replacing any previous value for the key, with
-// set time Now. key must be one of format.KnownSlotKeys (any case; stored
-// canonical). A zero until means no expiry; an until at or before Now is
-// rejected. Validation failures wrap format.ErrInvalid. It returns the slot
-// as stored.
-func (s *Store) PutSlot(ctx context.Context, userID int64, key, value string, until time.Time, source string) (format.Slot, error) {
-	canon, ok := format.CanonicalSlotKey(key)
+// MaxSourceBytes is the longest source token a slot may carry.
+const MaxSourceBytes = 32
+
+// ValidationError is a slot write or clear the rules reject. Field names
+// the offending input ("key", "value", "until", or "source") and Message
+// says what is wrong in words a client can show as is. It wraps
+// format.ErrInvalid.
+type ValidationError struct {
+	Field, Message string
+}
+
+func (e *ValidationError) Error() string { return format.ErrInvalid.Error() + ": " + e.Message }
+
+func (e *ValidationError) Unwrap() error { return format.ErrInvalid }
+
+func invalidSlot(field, f string, args ...any) error {
+	return &ValidationError{Field: field, Message: fmt.Sprintf(f, args...)}
+}
+
+// SlotWrite is one slot write as a client sent it. Until is an RFC 3339
+// time or empty for no expiry. Source is empty only when the caller has no
+// default to apply; transports fill in their own default before calling.
+type SlotWrite struct {
+	Key, Value, Until, Source string
+}
+
+// WriteSlot sets one slot for the account, replacing any previous value for
+// the key, with set time Now. It is the only writer of the slots table and
+// owns every rule for a slot write, so the write API and the account page
+// cannot drift:
+//
+//   - Key is one of format.KnownSlotKeys in any case, stored canonical.
+//   - Value is trimmed, then must be non-empty, one line, and at most
+//     format.MaxLineBytes, and the rendered slot must pass format.Validate.
+//   - Until, if set, parses as RFC 3339 and is after Now; it is stored in
+//     UTC to the second.
+//   - Source is empty or one token of at most MaxSourceBytes with no
+//     whitespace.
+//
+// A rule failure is a *ValidationError. It returns the slot as stored.
+func (s *Store) WriteSlot(ctx context.Context, userID int64, w SlotWrite) (format.Slot, error) {
+	canon, ok := format.CanonicalSlotKey(w.Key)
 	if !ok {
-		return format.Slot{}, fmt.Errorf("%w: unknown slot key %q", format.ErrInvalid, key)
+		return format.Slot{}, invalidSlot("key", "unknown slot key %q; known keys: %s", w.Key, strings.Join(format.KnownSlotKeys, ", "))
+	}
+	value := strings.TrimSpace(w.Value)
+	switch {
+	case value == "":
+		return format.Slot{}, invalidSlot("value", "value is required; clear the slot to remove it")
+	case strings.ContainsAny(value, "\r\n"):
+		return format.Slot{}, invalidSlot("value", "value must be one line")
+	case len(value) > format.MaxLineBytes:
+		return format.Slot{}, invalidSlot("value", "value is %d bytes, limit %d", len(value), format.MaxLineBytes)
 	}
 	now := s.now()
-	if !until.IsZero() {
-		until = until.UTC().Truncate(time.Second)
+	var until time.Time
+	if w.Until != "" {
+		t, err := time.Parse(time.RFC3339, w.Until)
+		if err != nil {
+			return format.Slot{}, invalidSlot("until", "until must be RFC 3339, for example 2026-10-13T13:00:00-04:00")
+		}
+		until = t.UTC().Truncate(time.Second)
 		if !until.After(now) {
-			return format.Slot{}, fmt.Errorf("%w: until is not in the future", format.ErrInvalid)
+			return format.Slot{}, invalidSlot("until", "until is not in the future")
 		}
 	}
-	slot := format.Slot{Key: canon, Value: value, Set: now, Until: until, Source: source}
+	if len(w.Source) > MaxSourceBytes || strings.ContainsAny(w.Source, " \t\r\n") {
+		return format.Slot{}, invalidSlot("source", "source must be one token of at most %d bytes", MaxSourceBytes)
+	}
+	slot := format.Slot{Key: canon, Value: value, Set: now, Until: until, Source: w.Source}
 	if err := format.Validate(format.Document{Version: format.CurrentVersion, Slots: []format.Slot{slot}}); err != nil {
-		return format.Slot{}, err
+		return format.Slot{}, invalidSlot("value", "%s", strings.TrimPrefix(err.Error(), format.ErrInvalid.Error()+": "))
 	}
 	err := s.tx(ctx, func(tx *sql.Tx) error {
 		if err := liveUser(ctx, tx, userID); err != nil {
@@ -504,7 +556,7 @@ func (s *Store) PutSlot(ctx context.Context, userID int64, key, value string, un
 		_, err := tx.ExecContext(ctx, `INSERT INTO slots (user_id, key, value, set_at, until, source) VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value, set_at = excluded.set_at,
 				until = excluded.until, source = excluded.source`,
-			userID, canon, value, fmtTime(now), nullTime(until), source)
+			userID, canon, value, fmtTime(now), nullTime(until), w.Source)
 		return err
 	})
 	if err != nil {
@@ -513,12 +565,21 @@ func (s *Store) PutSlot(ctx context.Context, userID int64, key, value string, un
 	return slot, nil
 }
 
-// DeleteSlot clears one slot. Clearing a slot that is not set is not an
-// error. Unknown keys wrap format.ErrInvalid.
-func (s *Store) DeleteSlot(ctx context.Context, userID int64, key string) error {
+// PutSlot is WriteSlot with a time.Time until, where zero means no expiry.
+func (s *Store) PutSlot(ctx context.Context, userID int64, key, value string, until time.Time, source string) (format.Slot, error) {
+	w := SlotWrite{Key: key, Value: value, Source: source}
+	if !until.IsZero() {
+		w.Until = until.Format(time.RFC3339Nano)
+	}
+	return s.WriteSlot(ctx, userID, w)
+}
+
+// ClearSlot clears one slot. Clearing a slot that is not set is not an
+// error. An unknown key is a *ValidationError.
+func (s *Store) ClearSlot(ctx context.Context, userID int64, key string) error {
 	canon, ok := format.CanonicalSlotKey(key)
 	if !ok {
-		return fmt.Errorf("%w: unknown slot key %q", format.ErrInvalid, key)
+		return invalidSlot("key", "unknown slot key %q; known keys: %s", key, strings.Join(format.KnownSlotKeys, ", "))
 	}
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM slots WHERE user_id = ? AND key = ?`, userID, canon)

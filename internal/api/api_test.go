@@ -166,7 +166,7 @@ func TestPutValidation(t *testing.T) {
 		{"empty value", "Status", `{"value":""}`, "value is required"},
 		{"missing value", "Status", `{}`, "value is required"},
 		{"multi-line value", "Status", `{"value":"one\ntwo"}`, "one line"},
-		{"padded value", "Status", `{"value":" hi "}`, "leading or trailing"},
+		{"blank value", "Status", `{"value":"   "}`, "value is required"},
 		{"value too long", "Status", `{"value":"` + strings.Repeat("x", 200) + `"}`, "limit 200"},
 		{"bad until", "Status", `{"value":"ok","until":"13:00"}`, "RFC 3339"},
 		{"past until", "Status", `{"value":"ok","until":"2026-10-13T15:59:00Z"}`, "not in the future"},
@@ -184,6 +184,13 @@ func TestPutValidation(t *testing.T) {
 	}
 	if len(f.slots(t)) != 0 {
 		t.Errorf("invalid writes landed: %+v", f.slots(t))
+	}
+	// Padding is trimmed, the same as on the account page.
+	if code, b := f.do(t, "PUT", "/api/v1/slots/Status", `{"value":" hi "}`); code != http.StatusNoContent {
+		t.Fatalf("padded value: %d %s", code, b)
+	}
+	if sl := f.slots(t); len(sl) != 1 || sl[0].Value != "hi" {
+		t.Errorf("padded value stored as %+v", sl)
 	}
 }
 
@@ -279,7 +286,7 @@ func TestSourceFromLabel(t *testing.T) {
 		if got := sourceFromLabel(in); got != want {
 			t.Errorf("sourceFromLabel(%q) = %q, want %q", in, got, want)
 		}
-		if got := sourceFromLabel(in); len(got) > maxSource {
+		if got := sourceFromLabel(in); len(got) > store.MaxSourceBytes {
 			t.Errorf("sourceFromLabel(%q) too long: %q", in, got)
 		}
 	}

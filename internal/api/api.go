@@ -1,5 +1,6 @@
-// Package api is the write API: every writer, including the web account
-// page, sets and clears slots through it with a per-device bearer token.
+// Package api is the write API: devices set and clear slots through it with
+// a per-device bearer token. It and the web account page both end in
+// store.WriteSlot and store.ClearSlot, which own every slot rule.
 //
 //	PUT    /api/v1/slots/{key}  {"value": "...", "until": "RFC 3339", "source": "token"}
 //	DELETE /api/v1/slots/{key}
@@ -14,11 +15,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/mglass/nowfile/internal/format"
 	"github.com/mglass/nowfile/internal/store"
@@ -26,9 +25,6 @@ import (
 
 // maxBody is the largest request body the API reads.
 const maxBody = 4 << 10
-
-// maxSource is the longest source token a writer may send.
-const maxSource = 32
 
 // Register adds the API routes to mux.
 func Register(mux *http.ServeMux, st *store.Store) {
@@ -80,11 +76,6 @@ type slotRequest struct {
 
 func (h *handler) putSlot(w http.ResponseWriter, r *http.Request) {
 	tok := token(r)
-	key, ok := format.CanonicalSlotKey(r.PathValue("key"))
-	if !ok {
-		writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("unknown slot key %q; known keys: %s", r.PathValue("key"), strings.Join(format.KnownSlotKeys, ", ")))
-		return
-	}
 	var req slotRequest
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody))
 	dec.DisallowUnknownFields()
@@ -92,50 +83,37 @@ func (h *handler) putSlot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "body must be a JSON object with value, and optionally until and source: "+err.Error())
 		return
 	}
-	if req.Value == "" {
-		writeError(w, http.StatusUnprocessableEntity, "value is required; use DELETE to clear a slot")
-		return
-	}
-	var until time.Time
-	if req.Until != "" {
-		t, err := time.Parse(time.RFC3339, req.Until)
-		if err != nil {
-			writeError(w, http.StatusUnprocessableEntity, "until must be RFC 3339, for example 2026-10-13T13:00:00-04:00")
-			return
-		}
-		until = t
-	}
 	source := req.Source
 	if source == "" {
 		source = sourceFromLabel(tok.Label)
-	} else if len(source) > maxSource || strings.ContainsAny(source, " \t\r\n") {
-		writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("source must be one token of at most %d bytes", maxSource))
-		return
 	}
-	// The store is the single validation path for value and until: one
-	// line, rendered line within format.MaxLineBytes, until in the future.
-	if _, err := h.st.PutSlot(r.Context(), tok.UserID, key, req.Value, until, source); err != nil {
-		if errors.Is(err, format.ErrInvalid) {
-			writeError(w, http.StatusUnprocessableEntity, strings.TrimPrefix(err.Error(), format.ErrInvalid.Error()+": "))
-			return
-		}
-		internalError(w, r, err)
+	// WriteSlot owns every rule; the account page calls it too.
+	_, err := h.st.WriteSlot(r.Context(), tok.UserID, store.SlotWrite{Key: r.PathValue("key"), Value: req.Value, Until: req.Until, Source: source})
+	if h.failed(w, r, err) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) deleteSlot(w http.ResponseWriter, r *http.Request) {
-	tok := token(r)
-	if err := h.st.DeleteSlot(r.Context(), tok.UserID, r.PathValue("key")); err != nil {
-		if errors.Is(err, format.ErrInvalid) {
-			writeError(w, http.StatusUnprocessableEntity, strings.TrimPrefix(err.Error(), format.ErrInvalid.Error()+": "))
-			return
-		}
-		internalError(w, r, err)
+	if h.failed(w, r, h.st.ClearSlot(r.Context(), token(r).UserID, r.PathValue("key"))) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// failed writes the response for a non-nil slot write error: 422 with the
+// rule's message for a *store.ValidationError, 500 otherwise.
+func (h *handler) failed(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err == nil {
+		return false
+	}
+	if ve := (*store.ValidationError)(nil); errors.As(err, &ve) {
+		writeError(w, http.StatusUnprocessableEntity, ve.Message)
+	} else {
+		internalError(w, r, err)
+	}
+	return true
 }
 
 func (h *handler) me(w http.ResponseWriter, r *http.Request) {
@@ -155,8 +133,8 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 
 // sourceFromLabel turns a token label such as "Mike's laptop" into a source
 // token such as "mike-s-laptop": lowercase ASCII letters and digits, other
-// runs replaced by one hyphen, at most maxSource bytes. A label with nothing
-// usable becomes "api".
+// runs replaced by one hyphen, at most store.MaxSourceBytes. A label with
+// nothing usable becomes "api".
 func sourceFromLabel(label string) string {
 	var b strings.Builder
 	dash := false
@@ -172,8 +150,8 @@ func sourceFromLabel(label string) string {
 		}
 	}
 	s := b.String()
-	if len(s) > maxSource {
-		s = strings.TrimRight(s[:maxSource], "-")
+	if len(s) > store.MaxSourceBytes {
+		s = strings.TrimRight(s[:store.MaxSourceBytes], "-")
 	}
 	if s == "" {
 		return "api"

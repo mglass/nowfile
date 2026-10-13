@@ -101,7 +101,9 @@ func (s *Server) accountPost(w http.ResponseWriter, r *http.Request) {
 	saved := func() { http.Redirect(w, r, "/account?saved=1", http.StatusSeeOther) }
 	invalid := func(err error, d accountData) {
 		msg := err.Error()
-		if errors.Is(err, format.ErrInvalid) {
+		if ve := (*store.ValidationError)(nil); errors.As(err, &ve) {
+			msg = ve.Message
+		} else if errors.Is(err, format.ErrInvalid) {
 			msg = strings.TrimPrefix(msg, format.ErrInvalid.Error()+": ")
 		}
 		s.renderAccount(w, r, u, http.StatusUnprocessableEntity, page{Error: msg}, d)
@@ -138,18 +140,14 @@ func (s *Server) accountPost(w http.ResponseWriter, r *http.Request) {
 		saved()
 
 	case "status":
-		form := statusForm{Value: strings.TrimSpace(f.Get("value")), Expiry: f.Get("expiry"), Custom: f.Get("custom")}
-		if form.Value == "" {
-			invalid(errors.New("Type a status, or use Clear to remove it."), accountData{Form: form})
-			return
-		}
+		form := statusForm{Value: f.Get("value"), Expiry: f.Get("expiry"), Custom: f.Get("custom")}
 		until, err := expiry(s.st.Now(), form.Expiry, form.Custom, f.Get("custom_utc"), f.Get("tz"))
 		if err != nil {
 			invalid(err, accountData{Form: form})
 			return
 		}
-		// The same store path the write API uses.
-		if _, err := s.st.PutSlot(ctx, u.ID, "Status", form.Value, until, webSource); err != nil {
+		// WriteSlot owns every rule; the write API calls it too.
+		if _, err := s.st.WriteSlot(ctx, u.ID, store.SlotWrite{Key: "Status", Value: form.Value, Until: until, Source: webSource}); err != nil {
 			if errors.Is(err, format.ErrInvalid) {
 				invalid(err, accountData{Form: form})
 				return
@@ -160,7 +158,7 @@ func (s *Server) accountPost(w http.ResponseWriter, r *http.Request) {
 		saved()
 
 	case "clear-status":
-		if err := s.st.DeleteSlot(ctx, u.ID, "Status"); err != nil {
+		if err := s.st.ClearSlot(ctx, u.ID, "Status"); err != nil {
 			s.serverError(w, r, err)
 			return
 		}
@@ -228,38 +226,41 @@ func webURL(v string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
-// expiry turns the status form's expiry choice into an until time. A zero
-// time means no expiry. tz is the browser's offset from UTC in minutes
-// (east positive), set by account.js; without it the server uses UTC.
-// customUTC is the custom time already converted to RFC 3339 by account.js,
-// which gets DST right; custom is the raw datetime-local value used when
-// script did not run.
-func expiry(now time.Time, preset, custom, customUTC, tz string) (time.Time, error) {
+// expiry turns the status form's expiry choice into the RFC 3339 until
+// string WriteSlot takes; empty means no expiry. tz is the browser's offset
+// from UTC in minutes (east positive), set by account.js; without it the
+// server uses UTC. customUTC is the custom time already converted to
+// RFC 3339 by account.js, which gets DST right; it is passed through as is
+// so WriteSlot alone judges it. custom is the raw datetime-local value used
+// when script did not run. The only errors are form errors: no custom time,
+// or an unknown choice.
+func expiry(now time.Time, preset, custom, customUTC, tz string) (string, error) {
 	off, _ := strconv.Atoi(tz)
 	if off < -14*60 || off > 14*60 {
 		off = 0
 	}
 	loc := time.FixedZone("", off*60)
+	rfc := func(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 	switch preset {
 	case "", "none":
-		return time.Time{}, nil
+		return "", nil
 	case "30m":
-		return now.Add(30 * time.Minute), nil
+		return rfc(now.Add(30 * time.Minute)), nil
 	case "1h":
-		return now.Add(time.Hour), nil
+		return rfc(now.Add(time.Hour)), nil
 	case "eod":
 		t := now.In(loc)
-		return time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, loc), nil
+		return rfc(time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, loc)), nil
 	case "custom":
-		if t, err := time.Parse(time.RFC3339, customUTC); err == nil {
-			return t, nil
+		if customUTC != "" {
+			return customUTC, nil
 		}
 		for _, layout := range []string{"2006-01-02T15:04", "2006-01-02T15:04:05"} {
 			if t, err := time.ParseInLocation(layout, custom, loc); err == nil {
-				return t, nil
+				return rfc(t), nil
 			}
 		}
-		return time.Time{}, errors.New("Pick a date and time for the custom expiry.")
+		return "", errors.New("Pick a date and time for the custom expiry.")
 	}
-	return time.Time{}, errors.New("Unknown expiry choice.")
+	return "", errors.New("Unknown expiry choice.")
 }
