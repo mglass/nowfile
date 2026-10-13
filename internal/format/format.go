@@ -121,7 +121,7 @@ func Compose(doc Document, now time.Time) Document {
 func Headline(doc Document) string {
 	for _, key := range headlineOrder {
 		for _, s := range doc.Slots {
-			if s.Key == key && s.Value != "" {
+			if strings.EqualFold(s.Key, key) && s.Value != "" {
 				return s.Value
 			}
 		}
