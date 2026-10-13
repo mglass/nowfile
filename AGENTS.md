@@ -1,4 +1,4 @@
-# .plan
+# dotplan
 
 A personal status page that updates itself, served over finger and the web. Open source, public good, no revenue. Public server at dotplan.io; the same binary self-hosts. `CLAUDE.md` is a symlink to this file.
 

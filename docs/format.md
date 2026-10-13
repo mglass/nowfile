@@ -1,4 +1,4 @@
-# The .plan document format, draft 0
+# The dotplan document format, draft 0
 
 The document is UTF-8 plain text, lines ending in `\n`, no line longer than about 200 bytes. It is what a finger server returns for a user, what `https://host/user.txt` serves, and what a self-hoster writes by hand into a `.plan` file on a classic fingerd.
 

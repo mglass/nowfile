@@ -1,4 +1,4 @@
-# .plan brief
+# dotplan brief
 
 Written 2026-10-13 from a conversation with Mike. This is the agreed shape of the project. Change it by decision, recorded in `coordination/decisions.md`, not by drift.
 

@@ -1,4 +1,4 @@
-# .plan
+# dotplan
 
 A personal status page that updates itself, readable over the finger protocol and the web.
 
