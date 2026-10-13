@@ -1,4 +1,4 @@
-# The dotplan document format, draft 0
+# The nowfile document format, draft 0
 
 The document is UTF-8 plain text, lines ending in `\n`, no line longer than about 200 bytes. It is what a finger server returns for a user, what `https://host/user.txt` serves, and what a self-hoster writes by hand into a `.plan` file on a classic fingerd.
 
@@ -8,7 +8,7 @@ The document is UTF-8 plain text, lines ending in `\n`, no line longer than abou
 .plan/0
 Name: Mike Glass
 Headline: Builds internal tools for small companies. Jacksonville, FL.
-Photo: https://dotplan.io/mike/photo.jpg
+Photo: https://nowfile.org/mike/photo.jpg
 Link: https://glasseffect.com
 Link: https://github.com/mglass
 

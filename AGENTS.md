@@ -1,6 +1,6 @@
-# dotplan
+# nowfile
 
-A personal status page that updates itself, served over finger and the web. Open source, public good, no revenue. Public server at dotplan.io; the same binary self-hosts. `CLAUDE.md` is a symlink to this file.
+A personal status page that updates itself, served over finger and the web. Open source, public good, no revenue. Public server at nowfile.org; the same binary self-hosts. `CLAUDE.md` is a symlink to this file.
 
 Read first:
 
@@ -26,7 +26,7 @@ Invariants:
 ```sh
 go test ./...
 gofmt -l . && go vet ./...
-go run ./cmd/dotplan     # finger on :7979 and HTTP on :8080 in dev
+go run ./cmd/nowfile     # finger on :7979 and HTTP on :8080 in dev
 ```
 
 ## Rules

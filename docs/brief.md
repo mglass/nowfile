@@ -1,10 +1,10 @@
-# dotplan brief
+# nowfile brief
 
 Written 2026-10-13 from a conversation with Mike. This is the agreed shape of the project. Change it by decision, recorded in `coordination/decisions.md`, not by drift.
 
 ## What it is
 
-A personal status page that updates itself, readable over the finger protocol and the web. The name is dotplan, after the `.plan` file that finger served in the 1990s. The public server lives at `dotplan.io`, so a person is `mike@dotplan.io` and `finger mike@dotplan.io` works from any terminal that still has a finger client, which includes every Mac.
+A personal status page that updates itself, readable over the finger protocol and the web. The name is nowfile: a file that is current, in the spirit of the `.plan` file finger served in the 1990s. The public server lives at `nowfile.org`, so a person is `mike@nowfile.org` and `finger mike@nowfile.org` works from any terminal that still has a finger client, which includes every Mac.
 
 It descends from three things: the AIM away message, the Unix `.plan` file, and the "now page" convention Derek Sivers started in 2015 (a page at `/now` saying what you are up to). Now pages rot because updating is manual. This one fills itself from sources the user has explicitly turned on, and every line on it carries an expiry so stale information disappears instead of lingering.
 
@@ -31,8 +31,8 @@ The server applies priority (a typed Status beats Calendar beats Focus for the h
 
 ## Reading
 
-- `finger user@dotplan.io` on TCP 79. `finger @dotplan.io` lists public users (optional, per-user opt-in). `/W` returns the long form.
-- `https://dotplan.io/user` is the HTML page with Open Graph tags so a pasted link previews the current headline. `https://dotplan.io/user.txt` is the finger document. `https://dotplan.io/user.json` is the same data structured.
+- `finger user@nowfile.org` on TCP 79. `finger @nowfile.org` lists public users (optional, per-user opt-in). `/W` returns the long form.
+- `https://nowfile.org/user` is the HTML page with Open Graph tags so a pasted link previews the current headline. `https://nowfile.org/user.txt` is the finger document. `https://nowfile.org/user.json` is the same data structured.
 - Readers can subscribe to changes without an account: email and RSS at launch, web push later. This is the buddy list for people without the app.
 - Clients try finger first and fall back to HTTPS, because some carrier and corporate networks block port 79.
 
@@ -68,7 +68,7 @@ Hosting for the public server: a small dedicated VM, separate from the Glass Eff
 
 ## Phases
 
-1. Format and server: `docs/format.md` final, finger listener, HTTP page and text and JSON, accounts with magic-link sign-in, static section, Status with expiry, per-device tokens, write API, CLI. Deploy at `dotplan.io` with Mike as the first user. Open the repo.
+1. Format and server: `docs/format.md` final, finger listener, HTTP page and text and JSON, accounts with magic-link sign-in, static section, Status with expiry, per-device tokens, write API, CLI. Deploy at `nowfile.org` with Mike as the first user. Open the repo.
 2. Sources and subscriptions: calendar feed pull, Last.fm pull, Shortcuts recipes for Focus, email and RSS subscriptions, user directory opt-in.
 3. AI: expiry parsing, calendar rewriter with learn mode, suggestions.
 4. Mac agent.
