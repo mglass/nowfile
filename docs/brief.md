@@ -4,7 +4,7 @@ Written 2026-10-13 from a conversation with Mike. This is the agreed shape of th
 
 ## What it is
 
-A personal status page that updates itself, readable over the finger protocol and the web. The name is `.plan`, after the file that finger served in the 1990s. The public server lives at `dotplan.io`, so a person is `mike@dotplan.io` and `finger mike@dotplan.io` works from any terminal that still has a finger client, which includes every Mac.
+A personal status page that updates itself, readable over the finger protocol and the web. The name is dotplan, after the `.plan` file that finger served in the 1990s. The public server lives at `dotplan.io`, so a person is `mike@dotplan.io` and `finger mike@dotplan.io` works from any terminal that still has a finger client, which includes every Mac.
 
 It descends from three things: the AIM away message, the Unix `.plan` file, and the "now page" convention Derek Sivers started in 2015 (a page at `/now` saying what you are up to). Now pages rot because updating is manual. This one fills itself from sources the user has explicitly turned on, and every line on it carries an expiry so stale information disappears instead of lingering.
 
