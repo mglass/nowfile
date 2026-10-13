@@ -17,3 +17,5 @@ Slices 2 to 5 run in parallel after slice 1 is accepted. Each commits only its o
 ## Log
 
 - Session started. Repo has docs and coordination only, no code.
+- Slice 1 (build-core) accepted at 4097bd3. Report highlights: LookupToken(plaintext) instead of TokenByHash, plan column on static, DirectoryNames for the empty finger query, a slot with until == now is expired. Builder flagged that `mike` is not held in code; folded into slice 4.
+- Slices 2 to 5 launched in parallel: build-finger, build-web, build-api, build-deploy (all opus/medium, fable advisor).
