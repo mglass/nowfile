@@ -1,0 +1,8 @@
+.git
+.github
+coordination
+data/
+*.db
+*.db-*
+.env
+.DS_Store
