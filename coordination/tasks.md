@@ -9,13 +9,13 @@
   - [x] slice 4 write API, tokens, CLI, admin (build-api)
   - [x] slice 5 Dockerfile, CI to GHCR (build-deploy)
   - [x] deploy to glasseffect-prod-1 and DNS
-  - [ ] Mike: click Verify on nowfile.org in Postmark
-  - [ ] open the repo (phase 1 closes with it)
+  - [x] Postmark domain verified, test send OK
+  - [x] repo public
 - Mike: DNS A records for nowfile.org and www when the coordinator asks
 
 ## Later
 
-- Phase 2: calendar and Last.fm pulls, Shortcuts recipes, email and RSS subscriptions
+- Phase 2: write docs/phase-2.md first, then calendar and Last.fm pulls, Shortcuts recipes, email and RSS subscriptions, directory opt-in
 - Phase 3: AI rewrites
 - Phase 4: Mac menu bar agent
 - Phase 5: iOS app, buddy list, buddies-only visibility
