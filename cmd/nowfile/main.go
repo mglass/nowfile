@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/mglass/nowfile/internal/admin"
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/finger"
 	"github.com/mglass/nowfile/internal/store"
@@ -36,8 +37,7 @@ func run(ctx context.Context, args []string) error {
 	defer st.Close()
 
 	if len(args) > 0 && args[0] == "admin" {
-		// TODO(admin slice): return admin.Run(ctx, st, args[1:])
-		return errors.New("admin commands are not built yet")
+		return admin.Run(ctx, st, args[1:], os.Stdout)
 	}
 	if len(args) > 0 {
 		return fmt.Errorf("unknown command %q", args[0])
@@ -73,6 +73,7 @@ func run(ctx context.Context, args []string) error {
 		return finger.ListenAndServe(ctx, cfg.FingerAddr, finger.FromStore(st, cfg.BaseURL))
 	})
 	// TODO(web slice): start(func(ctx context.Context) error { return web.Serve(ctx, cfg, st) })
+	// The web slice's mux must also call api.Register(mux, st) (internal/api).
 
 	<-ctx.Done()
 	wg.Wait()
