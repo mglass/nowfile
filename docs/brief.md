@@ -23,7 +23,7 @@ Open source, public good, no revenue model. Mike runs a free public server becau
 
 One plain-text document per user, composed by the server. See `docs/format.md` for the exact format. In outline:
 
-- A static section: name, headline, photo URL, links. The user writes it once.
+- A static section: name, headline, photo URL, links. The user writes it once. The photo is a link to an image hosted elsewhere; nowfile.org does not host images in version 1.
 - Dynamic slots, each one line plus indented metadata (set time, expiry, source). Launch slots: `Status` (the typed line), `Calendar`, `Focus`, `Listening`.
 - A `Plan:` block of free text at the end, for whatever the user wants to say at length.
 
@@ -86,4 +86,3 @@ Hosting for the public server: a small dedicated VM, separate from the Glass Eff
 - Hosting provider and region for the public server.
 - Public user directory default (opt-in is the current answer).
 - Username policy and reserved names.
-- Whether `Plan:` is markdown on the web page or plain text everywhere (leaning plain).

@@ -1,14 +1,14 @@
-# The nowfile document format, draft 0
+# The nowfile document format, draft 1
 
 The document is UTF-8 plain text, lines ending in `\n`, no line longer than about 200 bytes. It is what a finger server returns for a user, what `https://host/user.txt` serves, and what a self-hoster writes by hand into a `.plan` file on a classic fingerd.
 
 ## Shape
 
 ```
-.plan/0
+nowfile/0
 Name: Mike Glass
 Headline: Builds internal tools for small companies. Jacksonville, FL.
-Photo: https://nowfile.org/mike/photo.jpg
+Photo: https://glasseffect.com/mike.jpg
 Link: https://glasseffect.com
 Link: https://github.com/mglass
 
@@ -31,14 +31,14 @@ Reply within a day. Text for anything urgent.
 
 ## Rules
 
-- `.plan/0` on the first line marks the version. A document without it is a classic plan and is shown as raw text.
+- `nowfile/0` on the first line marks the version. A document without it is a classic plan and is shown as raw text.
 - A field is `Key: value` at column 0. Keys are case-insensitive ASCII. Unknown keys are kept and ignored by clients.
 - Metadata for the field above is on following lines indented by two spaces, `key: value`. Known metadata: `set` (RFC 3339), `until` (RFC 3339), `source` (a short token naming the writer).
 - A field with no `until` is static. A field whose `until` is in the past must not be emitted by a server and is dropped by a client.
 - `Link` may repeat. Other fields appear at most once.
-- `Plan:` alone on a line starts the free-text block, which runs to the end of the document. It is plain text.
+- `Plan:` alone on a line starts the free-text block, which runs to the end of the document. It is plain text everywhere, including the web page, so nothing renders as markup in one place and styling in another.
 - Blank lines are ignored outside the Plan block.
-- Clients scan for known keys anywhere in the response, because classic fingerd wraps a user's `.plan` in its own `Login`, `Directory`, `Shell`, and `Plan:` lines. A `.plan/0` line inside that wrapper still counts.
+- Clients scan for known keys anywhere in the response, because classic fingerd wraps a user's `.plan` in its own `Login`, `Directory`, `Shell`, and `Plan:` lines. A `nowfile/0` line inside that wrapper still counts.
 
 ## Fields
 
@@ -46,7 +46,7 @@ Reply within a day. Text for anything urgent.
 |---|---|---|
 | Name | display name | static |
 | Headline | one line about the person | static |
-| Photo | URL of an image | static |
+| Photo | URL of an image hosted elsewhere; the web page renders it, finger shows the link. nowfile.org does not host photos in version 1 | static |
 | Link | a URL, repeatable | static |
 | Status | the typed line, the away message | until, default none |
 | Calendar | derived busy state, never the event subject unless public | event end |
