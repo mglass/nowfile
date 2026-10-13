@@ -10,3 +10,4 @@ Append only. Date, decision, why, alternatives rejected.
 - 2026-10-13: Launch slots are Status, Calendar, Focus, Listening. Static section is name, headline, photo, links.
 - 2026-10-13: Stack follows Slipway (Go stdlib, SQLite, server-rendered HTML), not the client scaffold.
 - 2026-10-13: AI is limited to single-line rewrites and classifications on existing source data, approved per rule, off by default for self-hosters.
+- 2026-10-13 (correction): dotplan.io is registered since 2020 and hosts a live product, "dotplan, daily team check-ins". The earlier availability check used the rdap.org proxy, which has no .io registry and answered 404. Name and domain decision reopened; see STATUS.md.
