@@ -1,0 +1,111 @@
+{{define "head"}}<script src="/static/account.js" defer></script>{{end}}
+{{define "main"}}{{$csrf := .CSRF}}{{with .Data}}
+<h1>Account</h1>
+{{if $.Notice}}<p class="notice" role="status">{{$.Notice}}</p>{{end}}
+<p>Your page: <a href="{{.URL}}">{{.URL}}</a></p>
+
+<section>
+  <h2>Status</h2>
+  {{with .Status}}<p class="current">{{.Value}}{{if not .Until.IsZero}} <span class="meta">until <time datetime="{{rfc3339 .Until}}">{{rfc3339 .Until}}</time></span>{{end}}</p>
+  <form method="post" action="/account" class="inline">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="clear-status">
+    <button class="secondary">Clear</button>
+  </form>
+  {{else}}<p class="meta">No Status set.</p>{{end}}
+  <form method="post" action="/account" class="stack" id="status-form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="status">
+    <input type="hidden" name="tz" value="">
+    <input type="hidden" name="custom_utc" value="">
+    <label>New Status <input name="value" value="{{.Form.Value}}" maxlength="190" placeholder="Lunch, back at 1"></label>
+    <label>Expires
+      <select name="expiry" id="expiry">
+        <option value="none"{{if eq .Form.Expiry "none"}} selected{{end}}>Never</option>
+        <option value="30m"{{if eq .Form.Expiry "30m"}} selected{{end}}>In 30 minutes</option>
+        <option value="1h"{{if eq .Form.Expiry "1h"}} selected{{end}}>In 1 hour</option>
+        <option value="eod"{{if eq .Form.Expiry "eod"}} selected{{end}}>End of day</option>
+        <option value="custom"{{if eq .Form.Expiry "custom"}} selected{{end}}>Custom</option>
+      </select>
+    </label>
+    <label id="custom-wrap">Custom expiry <input type="datetime-local" name="custom" value="{{.Form.Custom}}"></label>
+    <button>Set Status</button>
+  </form>
+</section>
+
+<section>
+  <h2>Profile</h2>
+  <form method="post" action="/account" class="stack">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="profile">
+    <label>Name <input name="name" value="{{.Static.Name}}" maxlength="190"></label>
+    <label>Headline <input name="headline" value="{{.Static.Headline}}" maxlength="190"></label>
+    <label>Photo URL <input type="url" name="photo" value="{{.Static.Photo}}" placeholder="https://example.com/me.jpg"></label>
+    <small>A link to an image hosted elsewhere.</small>
+    <fieldset>
+      <legend>Links (up to five)</legend>
+      {{range .Links}}<input type="url" name="link" value="{{.}}" aria-label="Link">{{end}}
+    </fieldset>
+    <label>Plan <textarea name="plan" rows="6">{{.Static.Plan}}</textarea></label>
+    <small>Plain text, shown at the end of your page.</small>
+    <button>Save profile</button>
+  </form>
+</section>
+
+<section>
+  <h2>Your document</h2>
+  <p class="meta">Exactly what <code>finger</code> and <a href="{{.URL}}.txt">.txt</a> serve right now.</p>
+  <pre class="doc">{{.Document}}</pre>
+</section>
+
+<section>
+  <h2>Tokens</h2>
+  <p class="meta">Each device or script that sets your Status gets its own token.</p>
+  {{with .NewToken}}<p class="notice">New token: <code class="token">{{.}}</code></p>{{end}}
+  {{if .Tokens}}
+  <table class="tokens">
+    <thead><tr><th>Label</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+    <tbody>
+    {{range .Tokens}}
+    <tr>
+      <td>{{.Label}}</td>
+      <td><time datetime="{{rfc3339 .Created}}">{{rfc3339 .Created}}</time></td>
+      <td>{{if .LastUsed.IsZero}}never{{else}}<time datetime="{{rfc3339 .LastUsed}}">{{rfc3339 .LastUsed}}</time>{{end}}</td>
+      <td><form method="post" action="/account" class="inline">
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <input type="hidden" name="action" value="token-revoke">
+        <input type="hidden" name="id" value="{{.ID}}">
+        <button class="secondary">Revoke</button>
+      </form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="meta">No tokens yet.</p>{{end}}
+  <form method="post" action="/account" class="row">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="token-create">
+    <input name="label" placeholder="laptop" maxlength="64" required aria-label="Token label">
+    <button>Create token</button>
+  </form>
+</section>
+
+<section>
+  <h2>Directory</h2>
+  <form method="post" action="/account" class="row">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="directory">
+    <label class="check"><input type="checkbox" name="directory" value="1"{{if $.User.Directory}} checked{{end}}> List me when someone runs <code>finger @nowfile.org</code></label>
+    <button class="secondary">Save</button>
+  </form>
+</section>
+
+<section>
+  <h2>Delete account</h2>
+  <form method="post" action="/account">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="delete">
+    <button class="danger">Delete account…</button>
+  </form>
+</section>
+{{end}}{{end}}

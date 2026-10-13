@@ -1,0 +1,11 @@
+{{define "main"}}
+<h1>Delete account</h1>
+<p>This removes your page, your Status, and every token right away. Your username stays held for 90 days, then anyone can take it. There is no undo.</p>
+<form method="post" action="/account" class="stack">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="action" value="delete-confirm">
+  <label>Type <strong>{{.User.Name}}</strong> to confirm <input name="confirm" required autocapitalize="none" spellcheck="false"></label>
+  <button class="danger">Delete my account</button>
+</form>
+<p><a href="/account">Keep my account</a></p>
+{{end}}

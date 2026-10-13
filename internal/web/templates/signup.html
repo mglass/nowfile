@@ -1,0 +1,13 @@
+{{define "main"}}
+<h1>Sign up</h1>
+<p>Your username is the left side of <code>name@nowfile.org</code> and cannot be changed later.</p>
+<form method="post" action="/signup" class="stack">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>Username <input name="name" value="{{.Data.Name}}" required minlength="2" maxlength="32" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
+  <small>2 to 32 lowercase letters, digits, and hyphens, starting with a letter.</small>
+  <label>Email <input type="email" name="email" value="{{.Data.Email}}" required autocomplete="email"></label>
+  <small>We email you a sign-in link. One account per address.</small>
+  <button>Sign up</button>
+</form>
+<p>Already have one? <a href="/login">Sign in</a>.</p>
+{{end}}

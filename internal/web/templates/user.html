@@ -1,0 +1,35 @@
+{{define "head"}}{{with .Data}}
+<meta name="description" content="{{.Current}}">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Current}}">
+<meta property="og:url" content="{{.URL}}">
+{{with .Doc.Photo}}<meta property="og:image" content="{{.}}">{{end}}
+<meta name="twitter:card" content="summary">
+<link rel="alternate" type="text/plain" href="/{{.Username}}.txt">
+<link rel="alternate" type="application/json" href="/{{.Username}}.json">
+{{end}}{{end}}
+{{define "main"}}{{with .Data}}
+<article class="profile">
+  {{with .Doc.Photo}}<img class="photo" src="{{.}}" alt="" width="96" height="96">{{end}}
+  <h1>{{.Title}}</h1>
+  {{with .Doc.Headline}}<p class="headline">{{.}}</p>{{end}}
+  {{if .Doc.Slots}}
+  <dl class="slots">
+    {{range .Doc.Slots}}
+    <div class="slot">
+      <dt>{{.Key}}</dt>
+      <dd>{{.Value}}{{if not .Until.IsZero}} <span class="meta">until <time datetime="{{rfc3339 .Until}}">{{rfc3339 .Until}}</time></span>{{end}}</dd>
+    </div>
+    {{end}}
+  </dl>
+  {{end}}
+  {{if .Doc.Links}}
+  <ul class="links">{{range .Doc.Links}}<li><a href="{{.}}" rel="me nofollow">{{.}}</a></li>{{end}}</ul>
+  {{end}}
+  {{with .Doc.Plan}}<h2>Plan</h2><pre class="plan">{{.}}</pre>{{end}}
+</article>
+<footer class="alt">
+  <code>finger {{.Username}}@{{.FingerHost}}</code> · <a href="/{{.Username}}.txt">text</a> · <a href="/{{.Username}}.json">json</a>
+</footer>
+{{end}}{{end}}

@@ -17,6 +17,7 @@ import (
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/finger"
 	"github.com/mglass/nowfile/internal/store"
+	"github.com/mglass/nowfile/internal/web"
 )
 
 func main() {
@@ -72,8 +73,8 @@ func run(ctx context.Context, args []string) error {
 	start(func(ctx context.Context) error {
 		return finger.ListenAndServe(ctx, cfg.FingerAddr, finger.FromStore(st, cfg.BaseURL))
 	})
-	// TODO(web slice): start(func(ctx context.Context) error { return web.Serve(ctx, cfg, st) })
-	// The web slice's mux must also call api.Register(mux, st) (internal/api).
+	// web.Serve mounts the write API (api.Register) on its mux.
+	start(func(ctx context.Context) error { return web.Serve(ctx, cfg, st) })
 
 	<-ctx.Done()
 	wg.Wait()

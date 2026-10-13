@@ -1,0 +1,26 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/static/style.css">
+{{block "head" .}}{{end}}
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="/">nowfile</a>
+  <nav>
+    {{if .User}}<a href="/{{.User.Name}}">{{.User.Name}}</a>
+    <a href="/account">Account</a>
+    <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="link">Sign out</button></form>
+    {{else}}<a href="/login">Sign in</a> <a href="/signup">Sign up</a>{{end}}
+  </nav>
+</header>
+<main>
+{{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+{{block "main" .}}{{end}}
+</main>
+</body>
+</html>
+{{end}}

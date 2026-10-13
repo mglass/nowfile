@@ -1,0 +1,24 @@
+{{define "head"}}<meta name="description" content="A personal status page that updates itself, served over finger and the web.">{{end}}
+{{define "main"}}
+<h1>A status page that updates itself</h1>
+<p>nowfile is a short plain-text page saying what you are up to right now, in the spirit of the <code>.plan</code> file finger served in the 1990s and the away message. Every line carries an expiry, so stale lines disappear instead of lingering.</p>
+<p>Read anyone's from a terminal:</p>
+<pre class="doc">$ finger mike@nowfile.org</pre>
+<p>Or in a browser at <a href="/mike">nowfile.org/mike</a>, as plain text at <a href="/mike.txt">/mike.txt</a>, and as JSON at <a href="/mike.json">/mike.json</a>. All three are the same document.</p>
+<p>A document looks like this:</p>
+<pre class="doc">nowfile/0
+Name: Mike Glass
+Headline: Builds internal tools for small companies.
+Link: https://glasseffect.com
+
+Status: Lunch, back at 1
+  set: 2026-10-13T16:04:10Z
+  until: 2026-10-13T17:00:00Z
+  source: web
+
+Plan:
+Reply within a day. Text for anything urgent.</pre>
+<p>You write the static part once and set a Status from the web, a shell one-liner, or anything that can make an HTTPS request with a token. The format is published, so a hand-written <code>.plan</code> on a classic finger server reads the same way.</p>
+<p>Open source, free, no ads, no tracking.</p>
+{{if .User}}<p><a class="button" href="/account">Go to your account</a></p>{{else}}<p><a class="button" href="/signup">Get a nowfile</a> or <a href="/login">sign in</a></p>{{end}}
+{{end}}

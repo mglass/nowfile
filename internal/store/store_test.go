@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -60,9 +61,10 @@ func TestOpenMigratesOnce(t *testing.T) {
 		t.Fatalf("reopen: %v", err)
 	}
 	defer s.Close()
+	names, _ := fs.Glob(migrations, "migrations/*.sql")
 	var v int
-	if err := s.db.QueryRow(`SELECT version FROM schema_version`).Scan(&v); err != nil || v != 1 {
-		t.Fatalf("schema_version = %d, %v", v, err)
+	if err := s.db.QueryRow(`SELECT version FROM schema_version`).Scan(&v); err != nil || v != len(names) {
+		t.Fatalf("schema_version = %d, %v; want %d", v, err, len(names))
 	}
 	var mode string
 	s.db.QueryRow(`PRAGMA journal_mode`).Scan(&mode)
