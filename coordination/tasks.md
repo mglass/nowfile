@@ -2,7 +2,13 @@
 
 ## Now
 
-- Phase 1 build per docs/phase-1.md (coordinator pane `nowfile`)
+- Phase 1 build per docs/phase-1.md (coordinator pane `nowfile`), session coordination/sessions/2026-10-13-phase-1-build.md
+  - [ ] slice 1 core: format, username, store, cmd skeleton (build-core)
+  - [ ] slice 2 finger listener (build-finger)
+  - [ ] slice 3 web pages, accounts, magic links, account page (build-web)
+  - [ ] slice 4 write API, tokens, CLI, admin (build-api)
+  - [ ] slice 5 Dockerfile, CI to GHCR (build-deploy)
+  - [ ] deploy to glasseffect-prod-1 and DNS, with Mike
 - Mike: DNS A records for nowfile.org and www when the coordinator asks
 
 ## Later
