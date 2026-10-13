@@ -23,8 +23,9 @@ var (
 
 // Reserved lists the names that are never issued: the list in
 // docs/usernames.md plus every top-level route the site serves. Adding a
-// route means adding its name here and to the doc. It does not include
-// "mike", which is held for Mike rather than reserved.
+// route means adding its name here and to the doc. It includes "mike", which
+// is held for Mike: public sign-up rejects it, and the admin issues it with
+// ValidateHeld.
 var Reserved = []string{
 	// docs/usernames.md
 	"nowfile", "admin", "root", "www", "mail", "abuse", "postmaster", "hostmaster",
@@ -32,6 +33,8 @@ var Reserved = []string{
 	"plan", "status", "me", "you", "null", "undefined", "anonymous", "nobody",
 	"system", "daemon", "user", "test", "login", "logout", "signup", "signin",
 	"settings", "account", "terms", "privacy", "blog", "docs", "dev", "ops",
+	// held for Mike
+	"mike",
 	// top-level routes not already above
 	"health",
 }
@@ -54,6 +57,20 @@ func IsReserved(name string) bool {
 // It does not check whether the name is taken or in a release hold; the
 // store does that.
 func Validate(name string) (string, error) {
+	n, err := ValidateHeld(name)
+	if err != nil {
+		return "", err
+	}
+	if reserved[n] {
+		return "", fmt.Errorf("%w: %s", ErrReserved, n)
+	}
+	return n, nil
+}
+
+// ValidateHeld is Validate without the reserved check: it applies every
+// character and length rule and returns the canonical lowercase form. Only
+// the admin path uses it, to issue a reserved or held name such as "mike".
+func ValidateHeld(name string) (string, error) {
 	n := strings.ToLower(name)
 	if len(n) < MinLen || len(n) > MaxLen {
 		return "", fmt.Errorf("%w: must be %d to %d characters", ErrInvalid, MinLen, MaxLen)
@@ -72,9 +89,6 @@ func Validate(name string) (string, error) {
 	}
 	if strings.Contains(n, "--") {
 		return "", fmt.Errorf("%w: no two hyphens in a row", ErrInvalid)
-	}
-	if reserved[n] {
-		return "", fmt.Errorf("%w: %s", ErrReserved, n)
 	}
 	return n, nil
 }

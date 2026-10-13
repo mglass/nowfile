@@ -11,9 +11,10 @@ func TestValidate(t *testing.T) {
 		in, want string
 		err      error
 	}{
-		{"mike", "mike", nil},
-		{"Mike", "mike", nil},
-		{"MIKE", "mike", nil},
+		{"mary", "mary", nil},
+		{"Mary", "mary", nil},
+		{"MARY", "mary", nil},
+		{"Mike", "", ErrReserved}, // held for Mike
 		{"ab", "ab", nil},
 		{"a1", "a1", nil},
 		{"mary-jane", "mary-jane", nil},
@@ -80,7 +81,23 @@ func TestReservedListIsValidAndUnique(t *testing.T) {
 			t.Errorf("route %q not reserved", route)
 		}
 	}
-	if IsReserved("mike") {
-		t.Error("mike is held, not reserved")
+	if !IsReserved("Mike") {
+		t.Error("mike is held for Mike and must be reserved")
+	}
+}
+
+func TestValidateHeld(t *testing.T) {
+	if _, err := Validate("Mike"); !errors.Is(err, ErrReserved) {
+		t.Errorf("Validate(Mike) = %v, want ErrReserved", err)
+	}
+	for _, n := range []string{"Mike", "admin", "alice"} {
+		if got, err := ValidateHeld(n); err != nil || got != strings.ToLower(n) {
+			t.Errorf("ValidateHeld(%q) = %q, %v", n, got, err)
+		}
+	}
+	for _, n := range []string{"x", "1abc", "a--b", "bad-", "no_underscore"} {
+		if _, err := ValidateHeld(n); !errors.Is(err, ErrInvalid) {
+			t.Errorf("ValidateHeld(%q) = %v, want ErrInvalid", n, err)
+		}
 	}
 }

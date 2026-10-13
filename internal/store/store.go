@@ -202,9 +202,21 @@ func parseTime(v sql.NullString) (time.Time, error) {
 // and is stored lowercased; the email is trimmed and lowercased. It fails
 // with ErrNameTaken if a live account has the name, ErrNameHeld if the name
 // is in its post-deletion hold, and ErrEmailTaken if a live account has the
-// email.
+// email. A reserved name fails with username.ErrReserved, checked after the
+// taken and held checks so a name the admin issued reports ErrNameTaken.
 func (s *Store) CreateUser(ctx context.Context, name, email string) (User, error) {
-	name, err := username.Validate(name)
+	return s.createUser(ctx, name, email, false)
+}
+
+// CreateUserHeld is CreateUser for the admin: it skips the reserved-name
+// check so the admin can issue a held name such as "mike". Every other rule
+// still applies.
+func (s *Store) CreateUserHeld(ctx context.Context, name, email string) (User, error) {
+	return s.createUser(ctx, name, email, true)
+}
+
+func (s *Store) createUser(ctx context.Context, name, email string, allowReserved bool) (User, error) {
+	name, err := username.ValidateHeld(name)
 	if err != nil {
 		return User{}, err
 	}
@@ -227,6 +239,9 @@ func (s *Store) CreateUser(ctx context.Context, name, email string) (User, error
 		}
 		if n > 0 {
 			return ErrNameHeld
+		}
+		if !allowReserved && username.IsReserved(name) {
+			return fmt.Errorf("%w: %s", username.ErrReserved, name)
 		}
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE email = ? AND deleted_at IS NULL`, email).Scan(&n); err != nil {
 			return err

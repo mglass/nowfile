@@ -40,7 +40,7 @@ func open(t *testing.T) (*Store, *clock) {
 
 func mustUser(t *testing.T, s *Store, name, email string) User {
 	t.Helper()
-	u, err := s.CreateUser(ctx, name, email)
+	u, err := s.CreateUserHeld(ctx, name, email) // admin path, so fixtures may use "mike"
 	if err != nil {
 		t.Fatalf("CreateUser(%q): %v", name, err)
 	}
