@@ -675,3 +675,15 @@ func TestAPIMounted(t *testing.T) {
 		t.Errorf("/api/v1/me without token: %d, want 401", r.code)
 	}
 }
+
+// Message pages a signed-in user can land on still carry a working
+// sign-out form.
+func TestMessagePageSignOut(t *testing.T) {
+	e := newEnv(t)
+	e.signIn("hana")
+	r := e.get("/nobody-here")
+	m := csrfRE.FindStringSubmatch(r.body)
+	if r.code != 404 || m == nil || m[1] != e.csrf("/account") {
+		t.Fatalf("404 page sign-out csrf = %v", m)
+	}
+}

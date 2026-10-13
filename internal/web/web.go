@@ -173,7 +173,11 @@ func (s *Server) render(w http.ResponseWriter, status int, name string, p page) 
 // message renders a page that is only a heading and a paragraph.
 func (s *Server) message(w http.ResponseWriter, r *http.Request, status int, title, text string) {
 	u, _ := s.currentUser(r)
-	s.render(w, status, "message", page{Title: title, User: u, Notice: text})
+	p := page{Title: title, User: u, Notice: text}
+	if u != nil {
+		p.CSRF = s.csrfToken(w, r)
+	}
+	s.render(w, status, "message", p)
 }
 
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
