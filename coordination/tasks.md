@@ -2,9 +2,8 @@
 
 ## Now
 
-- Mike: review docs/format.md
-- Finalize docs/format.md (draft 0 → 1) after Mike reads it
-- Phase 1 build: server, finger listener, HTTP, accounts, Status, write API, CLI
+- Phase 1 build per docs/phase-1.md (coordinator pane `nowfile`)
+- Mike: DNS A records for nowfile.org and www when the coordinator asks
 
 ## Later
 
