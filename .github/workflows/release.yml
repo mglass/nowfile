@@ -1,0 +1,34 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: test
+        run: go test ./...
+      - name: build
+        env:
+          TAG: ${{ github.ref_name }}
+          CGO_ENABLED: '0'
+        run: |
+          for arch in arm64 amd64; do
+            GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$TAG" -o plan-darwin-$arch ./cmd/plan
+          done
+          sha256sum plan-darwin-arm64 plan-darwin-amd64 > SHA256SUMS
+          cat SHA256SUMS
+      - name: release
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes plan-darwin-arm64 plan-darwin-amd64 SHA256SUMS

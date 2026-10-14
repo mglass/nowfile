@@ -7,6 +7,7 @@
 //	plan --clear                       clear Status
 //	plan show [name@host]              read a nowfile: finger first, then HTTPS
 //	plan login                         save base_url, token, and name to the config
+//	plan --version                     print the version
 //
 // The config is ~/.config/nowfile/config ($XDG_CONFIG_HOME/nowfile/config
 // if set), key=value lines: base_url, token, and optionally name, which
@@ -26,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +39,23 @@ const usage = `usage:
   plan show [name@host] [--port 79]    read a nowfile over finger, falling back to HTTPS
   plan login [--base-url URL] [--token TOKEN] [--name NAME]
                                        save the config; prompts for anything not given
+  plan --version                       print the version
 `
+
+// version is the release tag, set at build time with
+// -ldflags "-X main.version=v0.1.0". A go install of a tagged module
+// reports the module version instead of "dev".
+var version = "dev"
+
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		return bi.Main.Version
+	}
+	return version
+}
 
 // defaultBaseURL is the public server.
 const defaultBaseURL = "https://nowfile.org"
@@ -78,6 +96,9 @@ func (a *app) run(ctx context.Context, args []string) error {
 			return a.show(ctx, args[1:])
 		case "login", "init":
 			return a.login(ctx, args[1:])
+		case "version", "-version", "--version":
+			fmt.Fprintln(a.stdout, buildVersion())
+			return nil
 		case "help", "-h", "--help":
 			fmt.Fprint(a.stdout, usage)
 			return nil

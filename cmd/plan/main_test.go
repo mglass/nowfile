@@ -54,6 +54,19 @@ func TestParseUntil(t *testing.T) {
 	}
 }
 
+func TestVersion(t *testing.T) {
+	for _, arg := range []string{"--version", "version"} {
+		var out strings.Builder
+		a := &app{stdout: &out, configPath: filepath.Join(t.TempDir(), "config")}
+		if err := a.run(ctx, []string{arg}); err != nil {
+			t.Fatalf("plan %s: %v", arg, err)
+		}
+		if got := out.String(); got != "dev\n" {
+			t.Errorf("plan %s = %q, want %q", arg, got, "dev\n")
+		}
+	}
+}
+
 func TestConfigRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nowfile", "config")
 	if c, err := loadConfig(path); err != nil || c != (config{}) {
