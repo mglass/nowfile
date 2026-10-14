@@ -33,6 +33,7 @@ var Reserved = []string{
 	"plan", "status", "me", "you", "null", "undefined", "anonymous", "nobody",
 	"system", "daemon", "user", "test", "login", "logout", "signup", "signin",
 	"settings", "account", "terms", "privacy", "blog", "docs", "dev", "ops",
+	"directory",
 	// held for Mike
 	"mike",
 	// top-level routes not already above

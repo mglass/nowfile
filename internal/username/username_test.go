@@ -101,3 +101,11 @@ func TestValidateHeld(t *testing.T) {
 		}
 	}
 }
+
+func TestDirectoryReserved(t *testing.T) {
+	for _, n := range []string{"directory", "Directory"} {
+		if _, err := Validate(n); !errors.Is(err, ErrReserved) {
+			t.Errorf("Validate(%q) = %v, want ErrReserved", n, err)
+		}
+	}
+}
