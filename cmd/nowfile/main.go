@@ -17,6 +17,7 @@ import (
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/finger"
 	"github.com/mglass/nowfile/internal/mail"
+	"github.com/mglass/nowfile/internal/sources"
 	"github.com/mglass/nowfile/internal/store"
 	"github.com/mglass/nowfile/internal/subs"
 	"github.com/mglass/nowfile/internal/web"
@@ -80,6 +81,9 @@ func run(ctx context.Context, args []string) error {
 	// The subscription notifier mails headline changes and prunes the
 	// changes history on start and daily.
 	start(subs.New(st, mail.New(cfg.PostmarkToken, cfg.MailFrom), cfg.BaseURL).Run)
+	// The calendar runner fetches enabled calendar sources and keeps each
+	// user's Calendar slot current.
+	start(sources.NewRunner(st, sources.NewFetcher(false)).Run)
 
 	<-ctx.Done()
 	wg.Wait()
