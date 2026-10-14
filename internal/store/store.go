@@ -363,7 +363,8 @@ func (s *Store) Release(ctx context.Context, name string) error {
 }
 
 // DeleteUser soft-deletes the account: it sets deleted_at, removes the
-// account's static section, slots, tokens, and sign-in links, and holds the
+// account's static section, slots, tokens, sign-in links, change history,
+// and email subscribers, and holds the
 // name for ReleaseHold. The users row is kept.
 func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 	now := s.now()
@@ -382,6 +383,8 @@ func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 			`DELETE FROM tokens WHERE user_id = ?`,
 			`DELETE FROM magic_links WHERE user_id = ?`,
 			`DELETE FROM static WHERE user_id = ?`,
+			`DELETE FROM changes WHERE user_id = ?`,
+			`DELETE FROM subscribers WHERE user_id = ?`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, id); err != nil {
 				return err
@@ -511,7 +514,8 @@ type SlotWrite struct {
 }
 
 // WriteSlot sets one slot for the account, replacing any previous value for
-// the key, with set time Now. It is the only writer of the slots table and
+// the key, with set time Now, and appends to the changes history when the
+// visible value changes (see recordChange). It is the only writer of the slots table and
 // owns every rule for a slot write, so the write API and the account page
 // cannot drift:
 //
@@ -561,6 +565,9 @@ func (s *Store) WriteSlot(ctx context.Context, userID int64, w SlotWrite) (forma
 		if err := liveUser(ctx, tx, userID); err != nil {
 			return err
 		}
+		if err := recordChange(ctx, tx, userID, canon, value, now); err != nil {
+			return err
+		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO slots (user_id, key, value, set_at, until, source) VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value, set_at = excluded.set_at,
 				until = excluded.until, source = excluded.source`,
@@ -582,7 +589,8 @@ func (s *Store) PutSlot(ctx context.Context, userID int64, key, value string, un
 	return s.WriteSlot(ctx, userID, w)
 }
 
-// ClearSlot clears one slot. Clearing a slot that is not set is not an
+// ClearSlot clears one slot, recording an empty value in the changes
+// history if the slot was showing. Clearing a slot that is not set is not an
 // error. An unknown key is a *ValidationError.
 func (s *Store) ClearSlot(ctx context.Context, userID int64, key string) error {
 	canon, ok := format.CanonicalSlotKey(key)
@@ -590,6 +598,9 @@ func (s *Store) ClearSlot(ctx context.Context, userID int64, key string) error {
 		return invalidSlot("key", "unknown slot key %q; known keys: %s", key, strings.Join(format.KnownSlotKeys, ", "))
 	}
 	return s.tx(ctx, func(tx *sql.Tx) error {
+		if err := recordChange(ctx, tx, userID, canon, "", s.now()); err != nil {
+			return err
+		}
 		_, err := tx.ExecContext(ctx, `DELETE FROM slots WHERE user_id = ? AND key = ?`, userID, canon)
 		return err
 	})
