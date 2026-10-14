@@ -298,3 +298,22 @@ func TestClientIP(t *testing.T) {
 		}
 	}
 }
+
+func TestRSSSameSecondKeepsLast(t *testing.T) {
+	e := newEnv(t)
+	u, _ := e.st.CreateUser(ctx, "alice", "alice@example.com")
+	e.st.WriteSlot(ctx, u.ID, store.SlotWrite{Key: "Status", Value: "typo"})
+	e.st.WriteSlot(ctx, u.ID, store.SlotWrite{Key: "Status", Value: "fixed"})
+	e.st.WriteSlot(ctx, u.ID, store.SlotWrite{Key: "Calendar", Value: "Busy until 17:00"})
+	var doc rssDoc
+	if err := xml.Unmarshal([]byte(e.get("/alice.rss").body), &doc); err != nil {
+		t.Fatal(err)
+	}
+	var titles []string
+	for _, it := range doc.Channel[0].Items {
+		titles = append(titles, it.Title...)
+	}
+	if strings.Join(titles, "|") != "Calendar: Busy until 17:00|Status: fixed" {
+		t.Fatalf("titles = %q", titles)
+	}
+}

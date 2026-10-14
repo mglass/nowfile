@@ -58,7 +58,8 @@ type rssGUID struct {
 // newest first, the last rssLimit of them. The title is the line as it was
 // set, or "Status cleared" for a clear, since one history row cannot say
 // what the headline fell back to. The guid is built from user, key, and set
-// time.
+// time; set times are to the second, so of several changes to one key in
+// one second only the last, the one readers saw, becomes an item.
 func (s *Server) feed(w http.ResponseWriter, r *http.Request, name string, doc format.Document) {
 	u, err := s.st.UserByName(r.Context(), name)
 	if err != nil {
@@ -86,17 +87,23 @@ func (s *Server) feed(w http.ResponseWriter, r *http.Request, name string, doc f
 		Self:        rssSelf{Href: pageURL + ".rss", Rel: "self", Type: "application/rss+xml"},
 		TTL:         1,
 	}}
+	seen := map[string]bool{}
 	for _, c := range changes {
+		set := c.Set.UTC().Format(time.RFC3339)
+		guid := s.fingerHost() + ":" + name + ":" + c.Key + ":" + set
+		if seen[guid] {
+			continue // newest first, so the one kept is the last write
+		}
+		seen[guid] = true
 		t := c.Key + ": " + c.Value
 		if c.Value == "" {
 			t = c.Key + " cleared"
 		}
-		set := c.Set.UTC().Format(time.RFC3339)
 		f.Channel.Items = append(f.Channel.Items, rssItem{
 			Title:   t,
 			Link:    pageURL,
 			PubDate: c.Set.UTC().Format(time.RFC1123Z),
-			GUID:    rssGUID{IsPermaLink: "false", Value: s.fingerHost() + ":" + name + ":" + c.Key + ":" + set},
+			GUID:    rssGUID{IsPermaLink: "false", Value: guid},
 		})
 	}
 	if len(changes) > 0 {
