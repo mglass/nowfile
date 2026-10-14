@@ -65,3 +65,27 @@ func TestNewFallsBackToLog(t *testing.T) {
 		t.Fatalf("log missing link: %q", buf.String())
 	}
 }
+
+func TestPostmarkHeaders(t *testing.T) {
+	var got struct {
+		Headers []struct{ Name, Value string }
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{"ErrorCode":0}`))
+	}))
+	defer srv.Close()
+	p := &Postmark{Token: "tok", From: "nowfile@nowfile.org", Endpoint: srv.URL}
+	m := Message{To: "a@example.com", Subject: "s", Text: "t", Headers: map[string]string{
+		"List-Unsubscribe":      "<https://nowfile.org/mike/unsubscribe/x>",
+		"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+	}}
+	if err := p.Send(context.Background(), m); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Headers) != 2 ||
+		got.Headers[0].Name != "List-Unsubscribe" || got.Headers[0].Value != "<https://nowfile.org/mike/unsubscribe/x>" ||
+		got.Headers[1].Name != "List-Unsubscribe-Post" || got.Headers[1].Value != "List-Unsubscribe=One-Click" {
+		t.Fatalf("headers = %+v", got.Headers)
+	}
+}

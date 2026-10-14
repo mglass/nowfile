@@ -1,4 +1,4 @@
-// Package mail sends nowfile's sign-in mail. With a Postmark server token it
+// Package mail sends nowfile's mail: sign-in links and subscription mail. With a Postmark server token it
 // sends through the Postmark REST API; without one it writes each message to
 // the log, so a dev server prints the magic link instead of mailing it.
 package mail
@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -19,6 +22,8 @@ type Message struct {
 	To      string
 	Subject string
 	Text    string
+	// Headers are extra headers, such as List-Unsubscribe. Optional.
+	Headers map[string]string
 }
 
 // Sender delivers a Message.
@@ -49,13 +54,22 @@ type Postmark struct {
 
 // Send posts m to Postmark and returns an error for any non-2xx response.
 func (p *Postmark) Send(ctx context.Context, m Message) error {
-	body, err := json.Marshal(map[string]string{
+	type header struct{ Name, Value string }
+	msg := map[string]any{
 		"From":          p.From,
 		"To":            m.To,
 		"Subject":       m.Subject,
 		"TextBody":      m.Text,
 		"MessageStream": "outbound",
-	})
+	}
+	if len(m.Headers) > 0 {
+		var hs []header
+		for _, k := range slices.Sorted(maps.Keys(m.Headers)) {
+			hs = append(hs, header{k, m.Headers[k]})
+		}
+		msg["Headers"] = hs
+	}
+	body, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -89,8 +103,12 @@ func (p *Postmark) Send(ctx context.Context, m Message) error {
 // Log writes each message to the standard logger instead of sending it.
 type Log struct{}
 
-// Send logs m, body included, and never fails.
+// Send logs m, headers and body included, and never fails.
 func (Log) Send(_ context.Context, m Message) error {
-	log.Printf("mail: not sent (NOWFILE_POSTMARK_TOKEN unset)\nTo: %s\nSubject: %s\n\n%s", m.To, m.Subject, m.Text)
+	var hs strings.Builder
+	for _, k := range slices.Sorted(maps.Keys(m.Headers)) {
+		fmt.Fprintf(&hs, "%s: %s\n", k, m.Headers[k])
+	}
+	log.Printf("mail: not sent (NOWFILE_POSTMARK_TOKEN unset)\nTo: %s\nSubject: %s\n%s\n%s", m.To, m.Subject, hs.String(), m.Text)
 	return nil
 }
