@@ -350,6 +350,12 @@ func PreviewCalendar(ctx context.Context, st *store.Store, f *Fetcher, userID in
 	if err != nil {
 		return Preview{}, store.Source{}, err
 	}
+	// A new URL leaves the source off; what the old one published goes too.
+	if !src.Enabled {
+		if err := Unpublish(ctx, st, userID); err != nil {
+			return Preview{}, store.Source{}, err
+		}
+	}
 	return Describe(state.Spans, loc, now), src, nil
 }
 

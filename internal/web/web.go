@@ -20,6 +20,7 @@ import (
 	"github.com/mglass/nowfile/internal/api"
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/mail"
+	"github.com/mglass/nowfile/internal/sources"
 	"github.com/mglass/nowfile/internal/store"
 	"github.com/mglass/nowfile/internal/subs"
 )
@@ -39,6 +40,7 @@ type Server struct {
 	secure bool // set the Secure attribute on cookies
 	pages  map[string]*template.Template
 	mux    *http.ServeMux
+	fetch  *sources.Fetcher // calendar previews; refuses non-public addresses
 }
 
 // Serve runs the site on cfg.HTTPAddr until ctx is cancelled, then shuts
@@ -86,6 +88,7 @@ func New(cfg config.Config, st *store.Store, m mail.Sender) (*Server, error) {
 		st:     st,
 		mail:   m,
 		subs:   subs.New(st, m, cfg.BaseURL),
+		fetch:  sources.NewFetcher(false),
 		secure: !strings.HasPrefix(cfg.BaseURL, "http://"),
 		pages:  map[string]*template.Template{},
 		mux:    http.NewServeMux(),

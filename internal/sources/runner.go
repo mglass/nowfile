@@ -122,7 +122,7 @@ func (r *Runner) runCalendar(ctx context.Context, src store.Source) {
 	if state.Failures > 0 {
 		return
 	}
-	if err := r.publish(ctx, src.UserID, state, loc, now); err != nil {
+	if err := publish(ctx, r.st, src.UserID, state, loc, now); err != nil {
 		r.Logf("sources: calendar %d: publish: %v", src.ID, err)
 	}
 }
@@ -131,8 +131,8 @@ func (r *Runner) runCalendar(ctx context.Context, src store.Source) {
 // writes only when the line or its until changed, so a steady meeting is one
 // write and one change in the history, not one a minute. It clears only a
 // slot the calendar wrote, never one another writer set.
-func (r *Runner) publish(ctx context.Context, userID int64, state CalendarState, loc *time.Location, now time.Time) error {
-	slots, err := r.st.Slots(ctx, userID)
+func publish(ctx context.Context, st *store.Store, userID int64, state CalendarState, loc *time.Location, now time.Time) error {
+	slots, err := st.Slots(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -146,15 +146,53 @@ func (r *Runner) publish(ctx context.Context, userID int64, state CalendarState,
 	until = until.UTC().Truncate(time.Second)
 	if !ok || !until.After(now) {
 		if cur != nil && cur.Source == SlotSource {
-			return r.st.ClearSlot(ctx, userID, "Calendar")
+			return st.ClearSlot(ctx, userID, "Calendar")
 		}
 		return nil
 	}
 	if cur != nil && cur.Source == SlotSource && cur.Value == line && cur.Until.Equal(until) {
 		return nil
 	}
-	_, err = r.st.WriteSlot(ctx, userID, store.SlotWrite{Key: "Calendar", Value: line, Until: until.Format(time.RFC3339), Source: SlotSource})
+	_, err = st.WriteSlot(ctx, userID, store.SlotWrite{Key: "Calendar", Value: line, Until: until.Format(time.RFC3339), Source: SlotSource})
 	return err
+}
+
+// PublishNow publishes the account's calendar from its last fetched spans
+// if it is enabled and healthy, without fetching. The account page calls it
+// on Enable so the line appears at once rather than on the next tick.
+func PublishNow(ctx context.Context, st *store.Store, userID int64, now time.Time) error {
+	src, err := st.Source(ctx, userID, KindCalendar)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil
+	}
+	if err != nil || !src.Enabled {
+		return err
+	}
+	var state CalendarState
+	json.Unmarshal([]byte(src.State), &state)
+	if state.Failures > 0 {
+		return nil
+	}
+	loc, err := UserLocation(ctx, st, userID)
+	if err != nil {
+		return err
+	}
+	return publish(ctx, st, userID, state, loc, now)
+}
+
+// Unpublish clears the Calendar slot if the calendar wrote it. The account
+// page calls it on Disable and Remove.
+func Unpublish(ctx context.Context, st *store.Store, userID int64) error {
+	slots, err := st.Slots(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, sl := range slots {
+		if sl.Key == "Calendar" && sl.Source == SlotSource {
+			return st.ClearSlot(ctx, userID, "Calendar")
+		}
+	}
+	return nil
 }
 
 // host is the part of a feed URL that is safe to log.

@@ -28,6 +28,7 @@ type accountData struct {
 	// Subscribers is the count of confirmed email subscribers, the only
 	// thing the owner sees about them.
 	Subscribers int
+	Sources     sourcesData
 }
 
 // statusForm keeps the status inputs across a failed submit.
@@ -76,6 +77,10 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, u *store.
 		return
 	}
 	if d.Subscribers, err = s.st.CountSubscribers(ctx, u.ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.loadSources(r, u, &d); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -223,7 +228,9 @@ func (s *Server) accountPost(w http.ResponseWriter, r *http.Request) {
 			Notice: "Your account and page are gone. The name " + u.Name + " stays held for 90 days before anyone else can take it."})
 
 	default:
-		http.Error(w, "unknown action", http.StatusBadRequest)
+		if !s.sourcesPost(w, r, u) {
+			http.Error(w, "unknown action", http.StatusBadRequest)
+		}
 	}
 }
 

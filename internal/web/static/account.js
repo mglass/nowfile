@@ -18,3 +18,5 @@
     }
   });
 })();
+// Time zone fields left empty get the browser's zone.
+document.querySelectorAll("input[data-tz]").forEach(function (i) { if (!i.value) i.value = Intl.DateTimeFormat().resolvedOptions().timeZone; });

@@ -65,6 +65,7 @@ type env struct {
 	mail  *mailbox
 	srv   *httptest.Server
 	c     *http.Client
+	site  *Server
 }
 
 func newEnv(t *testing.T) *env {
@@ -89,6 +90,7 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	h = s
+	e.site = s
 	e.c = e.newClient()
 	return e
 }

@@ -33,6 +33,48 @@
   </form>
 </section>
 
+<section id="sources">
+  <h2>Sources</h2>
+  <p class="meta">Sources update your page on their own. Nothing from a source shows until you have seen its preview and switched it on.</p>
+  <h3>Calendar</h3>
+  <p class="meta">Shows <code>Calendar: Busy until 15:00</code> while you are in a meeting, and nothing otherwise. Never what the meeting is. All-day events and events marked free do not count.</p>
+  {{with .Sources.Calendar}}
+  <p class="current">{{if $.Data.Sources.Fresh}}Preview{{else}}Right now{{end}}: {{if .Preview.Line}}<code>Calendar: {{.Preview.Line}}</code>{{else}}{{.Preview.Text}}{{end}}</p>
+  <p class="meta">{{if .Enabled}}On.{{else}}Off: nothing from this calendar is published.{{end}}
+    {{if not .LastRun.IsZero}}Last checked <time datetime="{{rfc3339 .LastRun}}">{{rfc3339 .LastRun}}</time>.{{end}}</p>
+  {{with .LastError}}<p class="error">The last three checks failed: {{.}} Your page keeps the last line until it expires.</p>{{end}}
+  <form method="post" action="/account" class="inline">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    {{if .Enabled}}<input type="hidden" name="action" value="calendar-disable">
+    <button class="secondary">Switch off</button>
+    {{else}}<input type="hidden" name="action" value="calendar-enable">
+    <button>Switch on</button>{{end}}
+  </form>
+  <form method="post" action="/account" class="inline">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="calendar-remove">
+    <button class="danger">Remove</button>
+  </form>
+  {{end}}
+  <form method="post" action="/account" class="stack">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="calendar-preview">
+    <input type="hidden" name="tz" value="" data-tz>
+    <label>{{if .Sources.Calendar}}Calendar link (change it and preview again to switch calendars){{else}}Calendar link{{end}}
+      <input type="url" name="url" value="{{.Sources.URL}}" placeholder="webcal:// or https:// link ending in .ics" required></label>
+    <small>Google Calendar: Settings, your calendar, Secret address in iCal format. iCloud: share the calendar as Public and copy the link. Outlook: Settings, Shared calendars, Publish, ICS link. Links that need a password do not work.</small>
+    <button>Preview</button>
+  </form>
+  <h3>Time zone</h3>
+  <form method="post" action="/account" class="row">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="timezone">
+    <input name="tz" value="{{.Sources.TimeZone}}" placeholder="America/New_York" aria-label="Time zone" data-tz>
+    <button class="secondary">Save</button>
+  </form>
+  <small class="meta">Times on your page, like "Busy until 15:00", are in this zone.{{if not .Sources.TimeZone}} Not saved yet; until it is, times show in UTC.{{end}}</small>
+</section>
+
 <section>
   <h2>Profile</h2>
   <form method="post" action="/account" class="stack">
