@@ -109,7 +109,7 @@ func (s *Service) Subscribe(ctx context.Context, u store.User, email, ip string)
 	if err != nil {
 		return err
 	}
-	link := s.baseURL + "/" + u.Name + "/confirm/" + token
+	link := s.baseURL + "/subscribe/confirm/" + token
 	return s.mail.Send(ctx, mail.Message{
 		To:      norm,
 		Subject: "Confirm your subscription to " + u.Name + " on nowfile",
@@ -128,9 +128,9 @@ func (s *Service) Confirm(ctx context.Context, token string) (store.Subscriber, 
 
 func (s *Service) pageURL(name string) string { return s.baseURL + "/" + name }
 
-// UnsubscribeURL is the link in every notification for sub on name's page.
-func (s *Service) UnsubscribeURL(name string, sub store.Subscriber) string {
-	return s.baseURL + "/" + name + "/unsubscribe/" + sub.Unsub
+// UnsubscribeURL is the link in every notification to sub.
+func (s *Service) UnsubscribeURL(sub store.Subscriber) string {
+	return s.baseURL + "/unsubscribe/" + sub.Unsub
 }
 
 // Run prunes, then notifies due subscribers every Poll and prunes again
@@ -233,7 +233,7 @@ func (s *Service) notification(u store.User, doc format.Document, headline strin
 	if line == "" {
 		line = "Nothing showing right now."
 	}
-	unsub := s.UnsubscribeURL(u.Name, sub)
+	unsub := s.UnsubscribeURL(sub)
 	return mail.Message{
 		To:      sub.Email,
 		Subject: u.Name + ": " + truncate(line, 120),

@@ -25,6 +25,9 @@ type accountData struct {
 	Tokens   []store.Token
 	NewToken string // plaintext of a just-created token, shown once
 	Form     statusForm
+	// Subscribers is the count of confirmed email subscribers, the only
+	// thing the owner sees about them.
+	Subscribers int
 }
 
 // statusForm keeps the status inputs across a failed submit.
@@ -69,6 +72,10 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, u *store.
 		}
 	}
 	if d.Tokens, err = s.st.Tokens(ctx, u.ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if d.Subscribers, err = s.st.CountSubscribers(ctx, u.ID); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

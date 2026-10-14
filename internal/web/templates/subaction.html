@@ -1,0 +1,7 @@
+{{define "main"}}{{with .Data}}
+<h1>{{.Heading}}</h1>
+<p>{{.Text}}</p>
+<form method="post" action="{{.Action}}">
+  <button>{{.Button}}</button>
+</form>
+{{end}}{{end}}

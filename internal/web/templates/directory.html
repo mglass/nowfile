@@ -1,0 +1,14 @@
+{{define "main"}}
+<h1>Directory</h1>
+<p class="meta">People on this server who chose to be listed, with what their page says now.</p>
+{{if .Data}}
+<dl class="slots">
+  {{range .Data}}
+  <div class="slot">
+    <dt><a href="/{{.Username}}">{{.Username}}</a></dt>
+    <dd>{{.Name}}{{if and .Name .Current}} · {{end}}{{with .Current}}<span class="meta">{{.}}</span>{{end}}</dd>
+  </div>
+  {{end}}
+</dl>
+{{else}}<p>Nobody is listed yet.</p>{{end}}
+{{end}}

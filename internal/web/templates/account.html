@@ -92,11 +92,16 @@
 </section>
 
 <section>
+  <h2>Subscribers</h2>
+  <p>{{if eq .Subscribers 1}}1 person follows{{else}}{{.Subscribers}} people follow{{end}} your page by email. Only the count is shown here.</p>
+</section>
+
+<section>
   <h2>Directory</h2>
   <form method="post" action="/account" class="row">
     <input type="hidden" name="csrf" value="{{$csrf}}">
     <input type="hidden" name="action" value="directory">
-    <label class="check"><input type="checkbox" name="directory" value="1"{{if $.User.Directory}} checked{{end}}> List me when someone runs <code>finger @nowfile.org</code></label>
+    <label class="check"><input type="checkbox" name="directory" value="1"{{if $.User.Directory}} checked{{end}}> List me on <a href="/directory">the directory</a> and when someone runs <code>finger @nowfile.org</code></label>
     <button class="secondary">Save</button>
   </form>
 </section>

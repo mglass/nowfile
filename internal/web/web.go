@@ -21,6 +21,7 @@ import (
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/mail"
 	"github.com/mglass/nowfile/internal/store"
+	"github.com/mglass/nowfile/internal/subs"
 )
 
 //go:embed templates/*.html
@@ -34,6 +35,7 @@ type Server struct {
 	cfg    config.Config
 	st     *store.Store
 	mail   mail.Sender
+	subs   *subs.Service
 	secure bool // set the Secure attribute on cookies
 	pages  map[string]*template.Template
 	mux    *http.ServeMux
@@ -83,6 +85,7 @@ func New(cfg config.Config, st *store.Store, m mail.Sender) (*Server, error) {
 		cfg:    cfg,
 		st:     st,
 		mail:   m,
+		subs:   subs.New(st, m, cfg.BaseURL),
 		secure: !strings.HasPrefix(cfg.BaseURL, "http://"),
 		pages:  map[string]*template.Template{},
 		mux:    http.NewServeMux(),
@@ -118,9 +121,16 @@ func New(cfg config.Config, st *store.Store, m mail.Sender) (*Server, error) {
 	s.mux.HandleFunc("POST /logout", s.post(s.logout))
 	s.mux.HandleFunc("GET /account", s.account)
 	s.mux.HandleFunc("POST /account", s.post(s.accountPost))
-	// /{name}, /{name}.txt, and /{name}.json share one pattern because a
-	// wildcard must be a whole path segment.
+	s.mux.HandleFunc("GET /directory", s.directory)
+	// /{name}, /{name}.txt, /{name}.json, and /{name}.rss share one pattern
+	// because a wildcard must be a whole path segment.
 	s.mux.HandleFunc("GET /{name}", s.public)
+	// Subscription routes take no CSRF token; see subsForm.
+	s.mux.HandleFunc("POST /subscribe/{name}", s.subscribe)
+	s.mux.HandleFunc("GET /subscribe/confirm/{token}", s.confirmPage)
+	s.mux.HandleFunc("POST /subscribe/confirm/{token}", s.confirm)
+	s.mux.HandleFunc("GET /unsubscribe/{token}", s.unsubscribePage)
+	s.mux.HandleFunc("POST /unsubscribe/{token}", s.unsubscribe)
 	api.Register(s.mux, st)
 	return s, nil
 }

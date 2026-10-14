@@ -37,7 +37,7 @@ var Reserved = []string{
 	// held for Mike
 	"mike",
 	// top-level routes not already above
-	"health",
+	"health", "subscribe", "unsubscribe",
 }
 
 var reserved = func() map[string]bool {

@@ -8,6 +8,7 @@
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="text/plain" href="/{{.Username}}.txt">
 <link rel="alternate" type="application/json" href="/{{.Username}}.json">
+<link rel="alternate" type="application/rss+xml" title="{{.Title}} on nowfile" href="/{{.Username}}.rss">
 {{end}}{{end}}
 {{define "main"}}{{with .Data}}
 <article class="profile">
@@ -29,7 +30,15 @@
   {{end}}
   {{with .Doc.Plan}}<h2>Plan</h2><pre class="plan">{{.}}</pre>{{end}}
 </article>
+<section class="follow">
+  <h2>Follow</h2>
+  <form method="post" action="/subscribe/{{.Username}}" class="row">
+    <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address" autocomplete="email">
+    <button>Email me changes</button>
+  </form>
+  <p class="meta">At most one email every 15 minutes, confirm first, unsubscribe in one click. Or use the <a href="/{{.Username}}.rss">RSS feed</a>.</p>
+</section>
 <footer class="alt">
-  <code>finger {{.Username}}@{{.FingerHost}}</code> · <a href="/{{.Username}}.txt">text</a> · <a href="/{{.Username}}.json">json</a>
+  <code>finger {{.Username}}@{{.FingerHost}}</code> · <a href="/{{.Username}}.txt">text</a> · <a href="/{{.Username}}.json">json</a> · <a href="/{{.Username}}.rss">rss</a>
 </footer>
 {{end}}{{end}}

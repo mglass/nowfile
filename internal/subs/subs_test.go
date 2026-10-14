@@ -75,7 +75,7 @@ func newEnv(t *testing.T) *env {
 	return &env{st: st, clock: c, mb: mb, svc: New(st, mb, "https://nowfile.test"), user: u}
 }
 
-var linkRE = regexp.MustCompile(`https://nowfile\.test/mike/confirm/(\S+)`)
+var linkRE = regexp.MustCompile(`https://nowfile\.test/subscribe/confirm/(\S+)`)
 
 // subscribe runs the whole opt-in and returns the confirmed subscriber.
 func (e *env) subscribe(t *testing.T, email string) store.Subscriber {
@@ -151,7 +151,7 @@ func TestNotifyOnHeadlineChange(t *testing.T) {
 		t.Fatalf("mails = %d", len(got))
 	}
 	m := got[0]
-	unsub := "https://nowfile.test/mike/unsubscribe/" + sub.Unsub
+	unsub := "https://nowfile.test/unsubscribe/" + sub.Unsub
 	if m.To != "reader@example.com" || m.Subject != "mike: Lunch, back at 1" ||
 		!strings.Contains(m.Text, "Mike Glass (mike) now:\n\n  Lunch, back at 1") ||
 		!strings.Contains(m.Text, unsub) {

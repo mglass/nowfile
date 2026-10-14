@@ -102,8 +102,8 @@ func TestValidateHeld(t *testing.T) {
 	}
 }
 
-func TestDirectoryReserved(t *testing.T) {
-	for _, n := range []string{"directory", "Directory"} {
+func TestPhase2RoutesReserved(t *testing.T) {
+	for _, n := range []string{"directory", "Directory", "subscribe", "unsubscribe"} {
 		if _, err := Validate(n); !errors.Is(err, ErrReserved) {
 			t.Errorf("Validate(%q) = %v, want ErrReserved", n, err)
 		}

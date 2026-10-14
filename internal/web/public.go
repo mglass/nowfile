@@ -20,9 +20,10 @@ type userPage struct {
 	Current    string // format.Headline
 }
 
-// public serves GET /{name}, /{name}.txt, and /{name}.json. All three come
-// from one store.DocumentByName call, which composes at the store's Now, so
-// they cannot disagree and never carry an expired slot. Unknown, suspended,
+// public serves GET /{name}, /{name}.txt, /{name}.json, and /{name}.rss
+// (see feed). The first three come from one store.DocumentByName call,
+// which composes at the store's Now, so they cannot disagree and never
+// carry an expired slot. Unknown, suspended,
 // and deleted users get the same 404.
 func (s *Server) public(w http.ResponseWriter, r *http.Request) {
 	name, kind := r.PathValue("name"), "html"
@@ -30,6 +31,8 @@ func (s *Server) public(w http.ResponseWriter, r *http.Request) {
 		name, kind = n, "txt"
 	} else if n, ok := strings.CutSuffix(name, ".json"); ok {
 		name, kind = n, "json"
+	} else if n, ok := strings.CutSuffix(name, ".rss"); ok {
+		name, kind = n, "rss"
 	}
 	name = strings.ToLower(name)
 
@@ -43,6 +46,10 @@ func (s *Server) public(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if kind == "rss" {
+		s.feed(w, r, name, doc)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-cache")
 	switch kind {
 	case "txt":
@@ -75,7 +82,7 @@ func (s *Server) public(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request, kind string) {
 	switch kind {
-	case "txt":
+	case "txt", "rss":
 		http.Error(w, "not found", http.StatusNotFound)
 	case "json":
 		w.Header().Set("Content-Type", "application/json")
