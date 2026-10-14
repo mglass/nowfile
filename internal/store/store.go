@@ -137,12 +137,19 @@ func (s *Store) migrate(ctx context.Context) error {
 		return err
 	}
 	sort.Strings(names)
+	seen := map[int]string{}
 	for _, name := range names {
 		base := filepath.Base(name)
 		n, err := strconv.Atoi(strings.SplitN(base, "_", 2)[0])
 		if err != nil {
 			return fmt.Errorf("store: migration %s: bad name", base)
 		}
+		// Two files with one number would apply the first and skip the
+		// second silently, so refuse to start.
+		if prev, ok := seen[n]; ok {
+			return fmt.Errorf("store: migrations %s and %s share a number", prev, base)
+		}
+		seen[n] = base
 		if n <= current {
 			continue
 		}
@@ -371,6 +378,7 @@ func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 		}
 		for _, q := range []string{
 			`DELETE FROM slots WHERE user_id = ?`,
+			`DELETE FROM sources WHERE user_id = ?`,
 			`DELETE FROM tokens WHERE user_id = ?`,
 			`DELETE FROM magic_links WHERE user_id = ?`,
 			`DELETE FROM static WHERE user_id = ?`,
