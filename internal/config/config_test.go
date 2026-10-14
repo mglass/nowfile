@@ -40,3 +40,18 @@ func TestOverrides(t *testing.T) {
 		t.Errorf("String leaks or omits secrets: %s", s)
 	}
 }
+
+func TestFetchPrivate(t *testing.T) {
+	if Load(func(string) string { return "" }).FetchPrivate {
+		t.Error("FetchPrivate on by default")
+	}
+	c := Load(func(k string) string {
+		if k == "NOWFILE_FETCH_PRIVATE" {
+			return "1"
+		}
+		return ""
+	})
+	if !c.FetchPrivate || !strings.Contains(c.String(), "fetch_private=true") {
+		t.Errorf("FetchPrivate not read: %s", c)
+	}
+}

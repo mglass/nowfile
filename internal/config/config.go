@@ -32,6 +32,11 @@ type Config struct {
 	MailFrom string
 	// AdminToken is NOWFILE_ADMIN_TOKEN. Empty means admin over HTTP is off.
 	AdminToken string
+	// FetchPrivate is NOWFILE_FETCH_PRIVATE=1. It lets calendar sources
+	// fetch from loopback and private networks, for a self-hosted server
+	// with a LAN calendar or a dev server. Off by default, and must stay off
+	// on a public server.
+	FetchPrivate bool
 }
 
 // FromEnv reads the configuration from the process environment.
@@ -49,6 +54,7 @@ func Load(getenv func(string) string) Config {
 		PostmarkToken: getenv("NOWFILE_POSTMARK_TOKEN"),
 		MailFrom:      getenv("NOWFILE_MAIL_FROM"),
 		AdminToken:    getenv("NOWFILE_ADMIN_TOKEN"),
+		FetchPrivate:  getenv("NOWFILE_FETCH_PRIVATE") == "1",
 	}
 	if c.HTTPAddr == "" {
 		c.HTTPAddr = ":8080"
@@ -84,6 +90,6 @@ func (c Config) String() string {
 		}
 		return "set"
 	}
-	return fmt.Sprintf("dev=%v http=%s finger=%s db=%s base_url=%s mail_from=%q postmark_token=%s admin_token=%s",
-		c.Dev, c.HTTPAddr, c.FingerAddr, c.DBPath, c.BaseURL, c.MailFrom, set(c.PostmarkToken), set(c.AdminToken))
+	return fmt.Sprintf("dev=%v http=%s finger=%s db=%s base_url=%s mail_from=%q postmark_token=%s admin_token=%s fetch_private=%v",
+		c.Dev, c.HTTPAddr, c.FingerAddr, c.DBPath, c.BaseURL, c.MailFrom, set(c.PostmarkToken), set(c.AdminToken), c.FetchPrivate)
 }

@@ -83,7 +83,7 @@ func run(ctx context.Context, args []string) error {
 	start(subs.New(st, mail.New(cfg.PostmarkToken, cfg.MailFrom), cfg.BaseURL).Run)
 	// The calendar runner fetches enabled calendar sources and keeps each
 	// user's Calendar slot current.
-	start(sources.NewRunner(st, sources.NewFetcher(false)).Run)
+	start(sources.NewRunner(st, sources.NewFetcher(cfg.FetchPrivate)).Run)
 
 	<-ctx.Done()
 	wg.Wait()

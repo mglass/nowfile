@@ -40,7 +40,7 @@ type Server struct {
 	secure bool // set the Secure attribute on cookies
 	pages  map[string]*template.Template
 	mux    *http.ServeMux
-	fetch  *sources.Fetcher // calendar previews; refuses non-public addresses
+	fetch  *sources.Fetcher // calendar previews; refuses non-public addresses unless cfg.FetchPrivate
 }
 
 // Serve runs the site on cfg.HTTPAddr until ctx is cancelled, then shuts
@@ -88,7 +88,7 @@ func New(cfg config.Config, st *store.Store, m mail.Sender) (*Server, error) {
 		st:     st,
 		mail:   m,
 		subs:   subs.New(st, m, cfg.BaseURL),
-		fetch:  sources.NewFetcher(false),
+		fetch:  sources.NewFetcher(cfg.FetchPrivate),
 		secure: !strings.HasPrefix(cfg.BaseURL, "http://"),
 		pages:  map[string]*template.Template{},
 		mux:    http.NewServeMux(),
