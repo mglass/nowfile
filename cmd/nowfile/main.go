@@ -16,7 +16,9 @@ import (
 	"github.com/mglass/nowfile/internal/admin"
 	"github.com/mglass/nowfile/internal/config"
 	"github.com/mglass/nowfile/internal/finger"
+	"github.com/mglass/nowfile/internal/mail"
 	"github.com/mglass/nowfile/internal/store"
+	"github.com/mglass/nowfile/internal/subs"
 	"github.com/mglass/nowfile/internal/web"
 )
 
@@ -75,6 +77,9 @@ func run(ctx context.Context, args []string) error {
 	})
 	// web.Serve mounts the write API (api.Register) on its mux.
 	start(func(ctx context.Context) error { return web.Serve(ctx, cfg, st) })
+	// The subscription notifier mails headline changes and prunes the
+	// changes history on start and daily.
+	start(subs.New(st, mail.New(cfg.PostmarkToken, cfg.MailFrom), cfg.BaseURL).Run)
 
 	<-ctx.Done()
 	wg.Wait()
