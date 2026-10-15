@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 	"time"
-
-	"github.com/mglass/nowfile/internal/format"
 )
 
 // Subscriber is one email address following one user's page. Readers have
@@ -24,15 +21,12 @@ type Subscriber struct {
 	// notification mail has to carry the same link again; it grants
 	// nothing but removing this one row.
 	Unsub string
-	// LastChangeID is the newest change the notifier has dealt with,
-	// LastHeadline the headline last mailed (or current at confirmation),
-	// and LastSent when the last notification went out (zero if never).
+	// LastChangeID is the newest change the subscriber has been mailed,
+	// or the newest at confirmation, so nothing from before is mailed.
 	LastChangeID int64
-	LastHeadline string
-	LastSent     time.Time
-	// PendingChangeID is the newest change to a watched key, filled only by
-	// DueSubscribers.
-	PendingChangeID int64
+	// LastDigest is the digest time the subscriber was last dealt with,
+	// whether a mail went out or there was nothing to say. Zero if never.
+	LastDigest time.Time
 }
 
 // ErrAlreadySubscribed is returned by PendSubscriber when the address is
@@ -77,29 +71,19 @@ func (s *Store) PendSubscriber(ctx context.Context, userID int64, email, confirm
 // ConfirmSubscriber confirms the pending subscription whose confirmation
 // secret is token. It works once and only before the secret expires;
 // otherwise it returns ErrLinkInvalid. The subscriber starts from the
-// page's current history and headline, so nothing already said is mailed.
+// page's current history, so nothing already said is mailed.
 func (s *Store) ConfirmSubscriber(ctx context.Context, token string) (Subscriber, error) {
 	now := s.now()
-	var id, userID int64
-	err := s.tx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx, `UPDATE subscribers SET confirmed = 1, token_hash = NULL, token_expires = NULL,
-				last_change_id = (SELECT COALESCE(MAX(c.id), 0) FROM changes c WHERE c.user_id = subscribers.user_id)
-			WHERE token_hash = ? AND confirmed = 0 AND token_expires > ?
-			  AND user_id IN (SELECT id FROM users WHERE deleted_at IS NULL)
-			RETURNING id, user_id`, HashToken(token), fmtTime(now)).Scan(&id, &userID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrLinkInvalid
-		}
-		return err
-	})
+	var id int64
+	err := s.db.QueryRowContext(ctx, `UPDATE subscribers SET confirmed = 1, token_hash = NULL, token_expires = NULL,
+			last_change_id = (SELECT COALESCE(MAX(c.id), 0) FROM changes c WHERE c.user_id = subscribers.user_id)
+		WHERE token_hash = ? AND confirmed = 0 AND token_expires > ?
+		  AND user_id IN (SELECT id FROM users WHERE deleted_at IS NULL)
+		RETURNING id`, HashToken(token), fmtTime(now)).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Subscriber{}, ErrLinkInvalid
+	}
 	if err != nil {
-		return Subscriber{}, err
-	}
-	var headline string
-	if doc, err := s.Document(ctx, userID, s.Now()); err == nil {
-		headline = format.Headline(doc)
-	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE subscribers SET last_headline = ? WHERE id = ?`, headline, id); err != nil {
 		return Subscriber{}, err
 	}
 	return s.subscriber(ctx, `id = ?`, id)
@@ -131,27 +115,41 @@ func (s *Store) CountSubscribers(ctx context.Context, userID int64) (int, error)
 	return n, err
 }
 
-// DueSubscribers returns the confirmed subscribers of live, unsuspended
-// accounts that have a change to one of keys newer than their
-// LastChangeID and were last mailed before sentBefore (or never), with
-// PendingChangeID set to the newest such change.
-func (s *Store) DueSubscribers(ctx context.Context, keys []string, sentBefore time.Time) ([]Subscriber, error) {
-	if len(keys) == 0 {
-		return nil, nil
+// DigestPage is a live, unsuspended account with confirmed subscribers,
+// and its time zone name ("" if not set).
+type DigestPage struct {
+	UserID   int64
+	TimeZone string
+}
+
+// DigestPages returns every account the digest notifier has to look at.
+func (s *Store) DigestPages(ctx context.Context) ([]DigestPage, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, COALESCE(st.tz, '') FROM users u
+		LEFT JOIN static st ON st.user_id = u.id
+		WHERE u.deleted_at IS NULL AND u.suspended = 0
+		  AND EXISTS (SELECT 1 FROM subscribers s WHERE s.user_id = u.id AND s.confirmed = 1)
+		ORDER BY u.id`)
+	if err != nil {
+		return nil, err
 	}
-	in := "(?" + strings.Repeat(", ?", len(keys)-1) + ")"
-	var args []any
-	for _, k := range keys {
-		args = append(args, k)
+	defer rows.Close()
+	var out []DigestPage
+	for rows.Next() {
+		var p DigestPage
+		if err := rows.Scan(&p.UserID, &p.TimeZone); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
 	}
-	args = append(args, fmtTime(sentBefore))
-	rows, err := s.db.QueryContext(ctx, `SELECT `+subscriberCols+`, p.pending FROM subscribers s
-		JOIN users u ON u.id = s.user_id
-		JOIN (SELECT user_id, MAX(id) AS pending FROM changes WHERE key IN `+in+` GROUP BY user_id) p ON p.user_id = s.user_id
-		WHERE s.confirmed = 1 AND u.deleted_at IS NULL AND u.suspended = 0
-		  AND p.pending > s.last_change_id
-		  AND (s.last_sent IS NULL OR s.last_sent <= ?)
-		ORDER BY s.id`, args...)
+	return out, rows.Err()
+}
+
+// DigestDue returns the user's confirmed subscribers not yet dealt with for
+// the digest at at: LastDigest before at, or never.
+func (s *Store) DigestDue(ctx context.Context, userID int64, at time.Time) ([]Subscriber, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+subscriberCols+` FROM subscribers s
+		WHERE s.user_id = ? AND s.confirmed = 1 AND (s.last_digest_at IS NULL OR s.last_digest_at < ?)
+		ORDER BY s.id`, userID, fmtTime(at))
 	if err != nil {
 		return nil, err
 	}
@@ -167,15 +165,12 @@ func (s *Store) DueSubscribers(ctx context.Context, keys []string, sentBefore ti
 	return out, rows.Err()
 }
 
-// MarkNotified records that the notifier dealt with every change up to
-// changeID for the subscriber and that headline is what they last saw. A
-// non-zero sent also records a mail going out.
-func (s *Store) MarkNotified(ctx context.Context, id, changeID int64, headline string, sent time.Time) error {
-	if sent.IsZero() {
-		return s.exec(ctx, `UPDATE subscribers SET last_change_id = ?, last_headline = ? WHERE id = ?`, changeID, headline, id)
-	}
-	return s.exec(ctx, `UPDATE subscribers SET last_change_id = ?, last_headline = ?, last_sent = ? WHERE id = ?`,
-		changeID, headline, fmtTime(sent), id)
+// MarkDigested records that the subscriber was dealt with for the digest
+// at at, so DigestDue leaves them out until the next one, and was mailed
+// every change up to changeID (0 when nothing was mailed).
+func (s *Store) MarkDigested(ctx context.Context, id int64, at time.Time, changeID int64) error {
+	return s.exec(ctx, `UPDATE subscribers SET last_digest_at = ?, last_change_id = MAX(last_change_id, ?) WHERE id = ?`,
+		fmtTime(at), changeID, id)
 }
 
 // PruneSubscribers deletes pending subscriptions whose confirmation link
@@ -188,10 +183,10 @@ func (s *Store) PruneSubscribers(ctx context.Context) (int64, error) {
 	return res.RowsAffected()
 }
 
-const subscriberCols = `s.id, s.user_id, s.email, s.confirmed, s.created, s.unsub_token, s.last_change_id, s.last_headline, s.last_sent`
+const subscriberCols = `s.id, s.user_id, s.email, s.confirmed, s.created, s.unsub_token, s.last_change_id, s.last_digest_at`
 
 func (s *Store) subscriber(ctx context.Context, where string, arg any) (Subscriber, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+subscriberCols+`, 0 FROM subscribers s WHERE s.`+where, arg)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+subscriberCols+` FROM subscribers s WHERE s.`+where, arg)
 	if err != nil {
 		return Subscriber{}, err
 	}
@@ -213,19 +208,18 @@ func (s *Store) subscriber(ctx context.Context, where string, arg any) (Subscrib
 	return out[0], nil
 }
 
-// scanSubscriber scans subscriberCols plus a pending change id.
+// scanSubscriber scans subscriberCols.
 func scanSubscriber(scan func(...any) error) (Subscriber, error) {
 	var sub Subscriber
-	var created, lastSent sql.NullString
-	if err := scan(&sub.ID, &sub.UserID, &sub.Email, &sub.Confirmed, &created, &sub.Unsub,
-		&sub.LastChangeID, &sub.LastHeadline, &lastSent, &sub.PendingChangeID); err != nil {
+	var created, lastDigest sql.NullString
+	if err := scan(&sub.ID, &sub.UserID, &sub.Email, &sub.Confirmed, &created, &sub.Unsub, &sub.LastChangeID, &lastDigest); err != nil {
 		return Subscriber{}, err
 	}
 	var err error
 	if sub.Created, err = parseTime(created); err != nil {
 		return Subscriber{}, err
 	}
-	if sub.LastSent, err = parseTime(lastSent); err != nil {
+	if sub.LastDigest, err = parseTime(lastDigest); err != nil {
 		return Subscriber{}, err
 	}
 	return sub, nil

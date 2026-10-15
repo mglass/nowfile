@@ -226,8 +226,10 @@ func TestSubscribeConfirmUnsubscribe(t *testing.T) {
 		t.Fatalf("account page subscriber section wrong")
 	}
 
-	// A Status change mails the reader, with the one-click headers.
+	// A Status change is in the next morning's digest, with the one-click
+	// headers. Alice has no time zone, so that is 08:00 UTC.
 	e.st.WriteSlot(ctx, e.user("alice").ID, store.SlotWrite{Key: "Status", Value: "Hello readers"})
+	e.clock.Add(16 * time.Hour)
 	if err := subs.New(e.st, e.mail, e.srv.URL).Tick(ctx); err != nil {
 		t.Fatal(err)
 	}

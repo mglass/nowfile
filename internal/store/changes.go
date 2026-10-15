@@ -65,9 +65,30 @@ func (s *Store) Changes(ctx context.Context, userID int64, keys []string, limit 
 		args = append(args, k)
 	}
 	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, key, value, set_at FROM changes
+	return s.changes(ctx, `SELECT id, user_id, key, value, set_at FROM changes
 		WHERE user_id = ? AND key IN (?`+strings.Repeat(", ?", len(keys)-1)+`)
 		ORDER BY id DESC LIMIT ?`, args...)
+}
+
+// ChangesBetween returns the user's changes to any of keys set at or after
+// from and before to, oldest first.
+func (s *Store) ChangesBetween(ctx context.Context, userID int64, keys []string, from, to time.Time) ([]Change, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	args := []any{userID}
+	for _, k := range keys {
+		args = append(args, k)
+	}
+	args = append(args, fmtTime(from), fmtTime(to))
+	return s.changes(ctx, `SELECT id, user_id, key, value, set_at FROM changes
+		WHERE user_id = ? AND key IN (?`+strings.Repeat(", ?", len(keys)-1)+`)
+		  AND set_at >= ? AND set_at < ?
+		ORDER BY set_at, id`, args...)
+}
+
+func (s *Store) changes(ctx context.Context, query string, args ...any) ([]Change, error) {
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

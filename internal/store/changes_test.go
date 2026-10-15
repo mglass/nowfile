@@ -177,7 +177,7 @@ func TestSubscriberLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sub.Confirmed || sub.Email != "reader@example.com" || sub.Unsub != "u1" || sub.LastHeadline != "Before" || sub.LastChangeID == 0 {
+	if !sub.Confirmed || sub.Email != "reader@example.com" || sub.Unsub != "u1" || sub.LastChangeID == 0 || !sub.LastDigest.IsZero() {
 		t.Fatalf("confirmed = %+v", sub)
 	}
 	if _, err := s.ConfirmSubscriber(ctx, "second"); !errors.Is(err, ErrLinkInvalid) {
@@ -190,30 +190,46 @@ func TestSubscriberLifecycle(t *testing.T) {
 		t.Fatalf("resubscribe: %v", err)
 	}
 
-	// Due only once there is a newer Status or Calendar change.
-	due, err := s.DueSubscribers(ctx, []string{"Status", "Calendar"}, c.Now())
-	if err != nil || len(due) != 0 {
-		t.Fatalf("due before change = %+v, %v", due, err)
+	// The digest notifier sees the page, and the subscriber is due.
+	pages, err := s.DigestPages(ctx)
+	if err != nil || len(pages) != 1 || pages[0].UserID != u.ID || pages[0].TimeZone != "" {
+		t.Fatalf("digest pages = %+v, %v", pages, err)
 	}
-	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Focus", Value: "Work"})
-	if due, _ = s.DueSubscribers(ctx, []string{"Status", "Calendar"}, c.Now()); len(due) != 0 {
-		t.Fatalf("due after Focus = %+v", due)
+	at := c.Now()
+	if due, err := s.DigestDue(ctx, u.ID, at); err != nil || len(due) != 1 || due[0].ID != sub.ID {
+		t.Fatalf("due = %+v, %v", due, err)
 	}
-	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Status", Value: "After"})
-	due, _ = s.DueSubscribers(ctx, []string{"Status", "Calendar"}, c.Now())
-	if len(due) != 1 || due[0].PendingChangeID <= sub.LastChangeID {
-		t.Fatalf("due after Status = %+v", due)
-	}
-	sent := c.Now()
-	if err := s.MarkNotified(ctx, sub.ID, due[0].PendingChangeID, "After", sent); err != nil {
+	if err := s.MarkDigested(ctx, sub.ID, at, sub.LastChangeID+5); err != nil {
 		t.Fatal(err)
 	}
-	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Status", Value: "Later"})
-	if due, _ = s.DueSubscribers(ctx, []string{"Status"}, sent.Add(-time.Second)); len(due) != 0 {
-		t.Fatalf("due inside the window = %+v", due)
+	if due, _ := s.DigestDue(ctx, u.ID, at); len(due) != 0 {
+		t.Fatalf("due again after marking = %+v", due)
 	}
-	if due, _ = s.DueSubscribers(ctx, []string{"Status"}, sent); len(due) != 1 || due[0].LastHeadline != "After" || !due[0].LastSent.Equal(sent.Truncate(time.Second)) {
-		t.Fatalf("due after the window = %+v", due)
+	// A skipped day (changeID 0) does not move LastChangeID back.
+	if err := s.MarkDigested(ctx, sub.ID, at.Add(time.Hour), 0); err != nil {
+		t.Fatal(err)
+	}
+	due, _ := s.DigestDue(ctx, u.ID, at.Add(2*time.Hour))
+	if len(due) != 1 || due[0].LastChangeID != sub.LastChangeID+5 || !due[0].LastDigest.Equal(at.Add(time.Hour)) {
+		t.Fatalf("after skip = %+v", due)
+	}
+
+	// ChangesBetween is oldest first, half-open, and only the keys asked.
+	c.Add(time.Minute)
+	from := c.Now()
+	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Focus", Value: "Work"})
+	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Status", Value: "After"})
+	c.Add(time.Minute)
+	s.ClearSlot(ctx, u.ID, "Status")
+	to := c.Now()
+	c.Add(time.Minute)
+	s.WriteSlot(ctx, u.ID, SlotWrite{Key: "Status", Value: "Later"})
+	got, err := s.ChangesBetween(ctx, u.ID, []string{"Status", "Calendar"}, from, to)
+	if err != nil || len(got) != 1 || got[0].Value != "After" {
+		t.Fatalf("between, end excluded = %+v, %v", got, err)
+	}
+	if got, _ = s.ChangesBetween(ctx, u.ID, []string{"Status", "Calendar"}, from, to.Add(time.Second)); len(got) != 2 || got[0].Value != "After" || got[1].Value != "" {
+		t.Fatalf("between, oldest first = %+v", got)
 	}
 
 	if got, err := s.SubscriberByUnsub(ctx, "u1"); err != nil || got.ID != sub.ID {

@@ -1,7 +1,7 @@
 // Package subs runs email subscriptions: a reader asks to follow a page,
-// confirms with a one-use link, and then gets a mail when the page's
-// headline changes, at most one per Interval, with changes in between
-// collapsed into the latest headline. Every notification carries a
+// confirms with a one-use link, and then gets one digest a day at
+// DigestHour in the page owner's time zone listing the previous day's
+// changes, or nothing on a day without any. Every digest carries a
 // one-click unsubscribe link and List-Unsubscribe headers. The store owns
 // the tables; this package owns the flow, the mail text, the rate limits,
 // and the notifier loop.
@@ -29,12 +29,12 @@ import (
 var Keys = []string{"Status", "Calendar"}
 
 const (
-	// Interval is the least time between two notifications to one
-	// subscriber.
-	Interval = 15 * time.Minute
+	// DigestHour is the local hour, in the page owner's time zone, at
+	// which the day's digest goes out.
+	DigestHour = 8
 	// ConfirmTTL is how long a confirmation link works.
 	ConfirmTTL = 24 * time.Hour
-	// Poll is how often the notifier looks for due subscribers.
+	// Poll is how often the notifier looks for due digests.
 	Poll = 30 * time.Second
 	// PruneEvery is how often old changes and expired pending
 	// subscriptions are deleted, besides once at start.
@@ -133,7 +133,7 @@ func (s *Service) UnsubscribeURL(sub store.Subscriber) string {
 	return s.baseURL + "/unsubscribe/" + sub.Unsub
 }
 
-// Run prunes, then notifies due subscribers every Poll and prunes again
+// Run prunes, then sends due digests every Poll and prunes again
 // every PruneEvery, until ctx is cancelled. It returns nil on shutdown;
 // errors from a single pass are logged, not returned.
 func (s *Service) Run(ctx context.Context) error {
@@ -172,75 +172,123 @@ func (s *Service) Prune(ctx context.Context) {
 	}
 }
 
-// Tick mails every subscriber with a Status or Calendar change they have
-// not been told about and no mail in the last Interval. The mail carries
-// the page's headline now, so changes in between collapse into the latest.
-// A change that leaves the headline where the subscriber last saw it (a
-// Calendar change under a typed Status, or a change and its undo) sends
-// nothing. A failed send is retried next tick.
+// Tick sends every digest that is due. A page's digest is due once its
+// owner's clock has passed DigestHour today; it lists the page's Status and
+// Calendar changes from DigestHour yesterday to DigestHour today, oldest
+// first, under the headline now. Changes after DigestHour wait for
+// tomorrow's. A subscriber is marked done for the day whether a mail went
+// out or there were no changes, so a restart never sends a day twice, and
+// is never mailed a change from before they confirmed. A failed send is
+// not marked and is retried next tick.
 func (s *Service) Tick(ctx context.Context) error {
 	now := s.st.Now()
-	due, err := s.st.DueSubscribers(ctx, Keys, now.Add(-Interval))
+	pages, err := s.st.DigestPages(ctx)
 	if err != nil {
 		return err
 	}
-	type page struct {
-		user     store.User
-		doc      format.Document
-		headline string
-		err      error
-	}
-	pages := map[int64]*page{}
 	var errs []error
-	for _, sub := range due {
-		p := pages[sub.UserID]
-		if p == nil {
-			p = &page{}
-			if p.user, p.err = s.st.UserByID(ctx, sub.UserID); p.err == nil {
-				p.doc, p.err = s.st.Document(ctx, sub.UserID, now)
-				p.headline = format.Headline(p.doc)
-			}
-			pages[sub.UserID] = p
-		}
-		if p.err != nil {
-			// Deleted or suspended between the query and now; the next
-			// query leaves them out.
-			continue
-		}
-		if p.headline == sub.LastHeadline {
-			if err := s.st.MarkNotified(ctx, sub.ID, sub.PendingChangeID, p.headline, time.Time{}); err != nil {
-				errs = append(errs, err)
-			}
-			continue
-		}
-		if err := s.mail.Send(ctx, s.notification(p.user, p.doc, p.headline, sub)); err != nil {
-			errs = append(errs, fmt.Errorf("mail subscriber %d: %w", sub.ID, err))
-			continue
-		}
-		if err := s.st.MarkNotified(ctx, sub.ID, sub.PendingChangeID, p.headline, now); err != nil {
+	for _, p := range pages {
+		if err := s.digestPage(ctx, p, now); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func (s *Service) notification(u store.User, doc format.Document, headline string, sub store.Subscriber) mail.Message {
+func (s *Service) digestPage(ctx context.Context, p store.DigestPage, now time.Time) error {
+	loc, err := store.LoadTimeZone(p.TimeZone)
+	if err != nil {
+		loc = time.UTC
+	}
+	from, at := DigestWindow(now, loc)
+	due, err := s.st.DigestDue(ctx, p.UserID, at)
+	if err != nil || len(due) == 0 {
+		return err
+	}
+	changes, err := s.st.ChangesBetween(ctx, p.UserID, Keys, from, at)
+	if err != nil {
+		return err
+	}
+	var u store.User
+	var doc format.Document
+	if len(changes) > 0 {
+		if u, err = s.st.UserByID(ctx, p.UserID); err != nil {
+			// Deleted or suspended since the query; the next one leaves
+			// them out.
+			return nil
+		}
+		if doc, err = s.st.Document(ctx, p.UserID, now); err != nil {
+			return nil
+		}
+	}
+	var errs []error
+	for _, sub := range due {
+		// Changes from before the subscriber confirmed are not theirs.
+		var theirs []store.Change
+		var last int64
+		for _, c := range changes {
+			if c.ID > sub.LastChangeID {
+				theirs = append(theirs, c)
+				last = max(last, c.ID)
+			}
+		}
+		if len(theirs) > 0 {
+			if err := s.mail.Send(ctx, s.digest(u, doc, theirs, from, at, loc, sub)); err != nil {
+				errs = append(errs, fmt.Errorf("mail subscriber %d: %w", sub.ID, err))
+				continue
+			}
+		}
+		if err := s.st.MarkDigested(ctx, sub.ID, at, last); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// DigestWindow returns the latest digest time at or before now in loc,
+// DigestHour local, and the one before it. The window is local day to
+// local day, so it is 23 or 25 hours across a daylight saving change.
+func DigestWindow(now time.Time, loc *time.Location) (from, at time.Time) {
+	l := now.In(loc)
+	y, m, d := l.Date()
+	at = time.Date(y, m, d, DigestHour, 0, 0, 0, loc)
+	if now.Before(at) {
+		d--
+		at = time.Date(y, m, d, DigestHour, 0, 0, 0, loc)
+	}
+	return time.Date(y, m, d-1, DigestHour, 0, 0, 0, loc), at
+}
+
+// digestTime is how times read in a digest: the window spans two days.
+const digestTime = "Mon 2 Jan 15:04"
+
+func (s *Service) digest(u store.User, doc format.Document, changes []store.Change, from, at time.Time, loc *time.Location, sub store.Subscriber) mail.Message {
 	who := u.Name
 	if doc.Name != "" {
 		who = doc.Name + " (" + u.Name + ")"
 	}
-	line := headline
+	line := format.Headline(doc)
 	if line == "" {
 		line = "Nothing showing right now."
 	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s now:\n\n  %s\n\n", who, line)
+	fmt.Fprintf(&b, "Changes from %s to %s (%s):\n\n", from.In(loc).Format(digestTime), at.In(loc).Format(digestTime), loc)
+	for _, c := range changes {
+		v := c.Value
+		if v == "" {
+			v = "cleared"
+		}
+		fmt.Fprintf(&b, "  %s  %s: %s\n", c.Set.In(loc).Format(digestTime), c.Key, v)
+	}
 	unsub := s.UnsubscribeURL(sub)
+	fmt.Fprintf(&b, "\n%s\n\n"+
+		"You get one email a day from this page, at %02d:00 its owner's time, and none on a day without changes.\n"+
+		"Unsubscribe with one click: %s\n", s.pageURL(u.Name), DigestHour, unsub)
 	return mail.Message{
 		To:      sub.Email,
 		Subject: u.Name + ": " + truncate(line, 120),
-		Text: fmt.Sprintf("%s now:\n\n  %s\n\n%s\n\n"+
-			"You get at most one email every 15 minutes from this page, with the latest line.\n"+
-			"Unsubscribe with one click: %s\n",
-			who, line, s.pageURL(u.Name), unsub),
+		Text:    b.String(),
 		Headers: map[string]string{
 			"List-Unsubscribe":      "<" + unsub + ">",
 			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

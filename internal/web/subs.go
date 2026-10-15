@@ -204,7 +204,7 @@ func (s *Server) confirmPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	s.render(w, http.StatusOK, "subaction", page{Title: "Confirm subscription", Data: subAction{
 		Heading: "Confirm subscription",
-		Text:    "Get an email when this nowfile changes, at most one every 15 minutes. Every email has a one-click unsubscribe link.",
+		Text:    "Get one email a day listing what changed on this nowfile, and none on a day without changes. Every email has a one-click unsubscribe link.",
 		Button:  "Confirm",
 		Action:  r.URL.Path,
 	}})
