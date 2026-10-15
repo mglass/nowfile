@@ -21,6 +21,6 @@ Last.fm or any server-side now-playing. Web push. CalDAV with authentication; a 
 ## Done means
 
 - Mike adds his calendar's ICS URL on the account page, sees the preview, enables it, and `finger mike@nowfile.org` shows `Calendar: Busy until ...` during his next meeting and nothing after it ends, with no event subject anywhere.
-- A reader subscribes by email to Mike's page, confirms, and gets one mail when his Status changes. `https://nowfile.org/mike.rss` validates and shows the same change.
+- A reader subscribes by email to Mike's page, confirms, and gets the next morning's digest listing the change. `https://nowfile.org/mike.rss` validates and shows the same change.
 - `curl -L` of the release asset installs `plan` on a Mac and `plan --version` prints the tag.
 - `go test ./...` covers ICS parsing and recurrence expansion against fixture files, busy-span merging, the preview, the subscription confirm and unsubscribe flows, RSS output, and the directory.
