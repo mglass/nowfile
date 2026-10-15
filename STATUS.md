@@ -2,16 +2,17 @@
 
 ## Where things stand
 
-Phase 1 is live. nowfile.org serves Mike's page over finger and HTTPS from glasseffect-prod-1 (image sha-de7ead6, Litestream to B2 under nowfile/). All "done means" checks in docs/phase-1.md passed on 2026-10-13: `finger mike@nowfile.org` from a Mac, `https://nowfile.org/mike` with the Status in og:description, `plan "testing"` from Mike's Mac changing finger and HTTPS within a second, and an expired Status disappearing from finger, .txt, and .json without a restart. www redirects to the apex. Mike's CLI config is at ~/.config/nowfile/config (token "mikes-mac", id 2; token id 1 was never usable and should be revoked from the account page).
+Phase 2 code is on main and tagged v0.1.0 (9be3db5). Three slices accepted on 2026-10-14: the calendar source (ICS fetch with ETag, recurrence expansion incl. monthly and RDATE, busy-span merge, preview before enable, runner writing Calendar through WriteSlot and never the subject, private-network fetches refused), subscriptions (changes history, RSS at /{name}.rss, email double opt-in with per-IP and per-address limits, one-click unsubscribe with List-Unsubscribe, 15-minute collapse, /directory with `directory` reserved), and releases (tag-triggered workflow building plan for darwin arm64 and amd64 with SHA256SUMS, `plan --version`, docs/install.md, docs/shortcuts.md). Tests, vet, gofmt clean; local smoke of RSS, directory, subscribe form, API passed.
 
-Fixed on the box along the way: the Caddy container resolved DNS through Tailscale MagicDNS and could not reach any ACME issuer (failing since July, would have broken gemstone's renewal). /srv/caddy/compose.yml now pins dns 108.61.10.10 and 1.1.1.1; backup at compose.yml.bak-20261013.
+In flight: CI is building the v0.1.0 release assets and the sha-9be3db5 image. Next the coordinator rolls prod to that image (standing deploy authorization), then Mike adds his calendar ICS URL on the account page for the phase 2 done check, and a reader test of email subscription.
 
-Postmark is verified and a test send from nowfile@nowfile.org went through, so sign-up and magic-link sign-in work for the public. The repo is public at github.com/mglass/nowfile. Phase 1 is complete. Next: phase 2 per docs/brief.md (calendar feed pull, Last.fm pull, Shortcuts recipes for Focus, email and RSS subscriptions, user directory opt-in), which needs a phase 2 spec first.
+Decided this phase: no Last.fm ever (Listening comes with the Mac agent); plan ships on GitHub Releases for Mac first; mail from nowfile@nowfile.org; CalDAV with auth rejected in this phase. Builder choices worth knowing: the runner evaluates stored spans every minute but fetches every 5; it only clears a Calendar slot it wrote itself; NOWFILE_FETCH_PRIVATE=1 is dev-only and must stay off on nowfile.org; tzdata is embedded in the binary.
 
-Parked: inactivity pruning job (docs/usernames.md); AGENTS.md invariant wording about "same write API" should become "one slot-write code path".
+Parked: a "N events could not be read" note on the calendar preview; signing and notarizing plan; Linux and Windows builds; inactivity pruning; AGENTS.md invariant wording.
 
 ## Recent
 
+- 2026-10-14 (9be3db5): phase 2 slices accepted, tagged v0.1.0
 - 2026-10-13: Postmark verified, repo public, phase 1 complete
 - 2026-10-13: Caddy DNS fixed, HTTPS live, all phase 1 done checks pass; Postmark DNS records added, verification pending
 - 2026-10-13: deployed to prod; finger live at nowfile.org; HTTPS blocked on Caddy container DNS, Postmark blocked on domain verification
@@ -19,4 +20,3 @@ Parked: inactivity pruning job (docs/usernames.md); AGENTS.md invariant wording 
 - 2026-10-13 (8b034de): slices 2 to 5 accepted: finger, web and accounts, API and CLI and admin, Dockerfile and CI; smoke tested
 - 2026-10-13 (4097bd3): slice 1 accepted: format, username, store, config, entrypoint
 - 2026-10-13 (7a3eb99): phase 1 session opened, work split into five slices
-- 2026-10-13: format draft 1, phase 1 spec, username policy; build started

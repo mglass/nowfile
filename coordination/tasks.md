@@ -3,9 +3,9 @@
 ## Now
 
 - Phase 2 build per docs/phase-2.md, session coordination/sessions/2026-10-14-phase-2-build.md
-  - [ ] slice A calendar source, sources model, runner, account page Sources section (build-calendar)
-  - [ ] slice B subscriptions: changes table, RSS, email double opt-in, directory page (build-subs)
-  - [ ] slice C plan releases workflow, install doc, shortcuts doc (build-release)
+  - [x] slice A calendar source, sources model, runner, account page Sources section (build-calendar)
+  - [x] slice B subscriptions: changes table, RSS, email double opt-in, directory page (build-subs)
+  - [x] slice C plan releases workflow, install doc, shortcuts doc (build-release)
   - [ ] Mike: add his ICS URL and test
 
 - Phase 1 build per docs/phase-1.md (coordinator pane `nowfile`), session coordination/sessions/2026-10-13-phase-1-build.md
