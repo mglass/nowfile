@@ -12,7 +12,7 @@ Parked: a "N events could not be read" note on the calendar preview; signing and
 
 ## Recent
 
-- 2026-10-15 (2bebcf8): email subscriptions are a daily digest
+- 2026-10-15 (2bebcf8): email subscriptions are a daily digest; prod on sha-1c49a26
 - 2026-10-15: prod on sha-9be3db5, v0.1.0 release assets verified
 - 2026-10-14 (9be3db5): phase 2 slices accepted, tagged v0.1.0
 - 2026-10-13: Postmark verified, repo public, phase 1 complete
