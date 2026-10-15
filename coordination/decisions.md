@@ -28,3 +28,4 @@ Append only. Date, decision, why, alternatives rejected.
 - 2026-10-14: No Last.fm integration, ever. Listening comes from the native apps reading now-playing directly (Mac agent first). Why: Mike does not want a third-party scrobbler in the path. Phase 2 drops the Listening source; it returns with the Mac agent.
 - 2026-10-14: The `plan` CLI ships as a macOS binary on GitHub Releases (arm64 and amd64), built by CI on a version tag. Linux and Windows later. Why: Mike's call; Mac is the first audience.
 - 2026-10-14: Subscription and sign-in mail come from nowfile@nowfile.org. Why: the address already exists and is verified in Postmark.
+- 2026-10-15: Email subscriptions are a once-a-day digest, not a mail per change. Why: Mike's call; a mail every 15 minutes is noise. Default send time 08:00 in the page owner's time zone (subscribers have no zone); no mail on days with no change. RSS stays per change.
