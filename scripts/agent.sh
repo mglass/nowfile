@@ -16,9 +16,6 @@ if [ "${HERDR_ENV:-}" != "1" ]; then
 fi
 
 name=${1:?name}; model=${2:?model}; effort=${3:?effort}; prompt=${4:?prompt}; shift 4
-prompt="$prompt
-
-Rule from Mike: deleting is a decision, not a side effect. Never run rm -rf, rm -r, git clean, git reset --hard, git checkout -- ., a force push, or anything that removes a directory on your own. If something must go, move it into coordination/trash/ (or a trash/ folder in your scratchpad) and list it in your report so Mike can decide. Scratch files and temp databases go in your scratchpad directory only."
 cwd=$PWD; direction=""; wait_flag=""; timeout=600000; advisor=""
 while [ $# -gt 0 ]; do
   case $1 in
