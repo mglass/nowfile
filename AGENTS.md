@@ -45,7 +45,7 @@ Keep `STATUS.md` current. After every meaningful change: rewrite "Where things s
 This repo runs inside Herdr. A coordinating agent (Fable 5.1, low effort) talks to Mike, records conversations in `coordination/sessions/`, appends decisions to `coordination/decisions.md`, keeps `coordination/tasks.md` current, and rewrites `STATUS.md`. It delegates code to subagents in their own Herdr panes with `scripts/agent.sh`. In-process subagents leave no session and are not used for real work.
 
 ```
-scripts/agent.sh <name> <model> <effort> "<prompt>" [--cwd <dir>] [--direction right|down] [--wait] [--advisor none|fable|opus|sonnet]
+scripts/agent.sh <name> <model> <effort> "<prompt>" [--cwd <dir>] [--tab | --direction right|down] [--wait] [--advisor none|fable|opus|sonnet]
 ```
 
 | Work | Model | Effort | Advisor |
@@ -55,4 +55,4 @@ scripts/agent.sh <name> <model> <effort> "<prompt>" [--cwd <dir>] [--direction r
 | Logic fixes, features, tests, infrastructure | Opus 5.5 (`opus`) | medium | fable |
 | Stuck debugging, architecture, migrations, security | Opus 5.5 (`opus`) | xhigh | fable |
 
-Small fixes lane: split by surface, run in parallel, verify once per batch, no brief or report. Fable above low or Opus above xhigh needs Mike's approval first.
+Long-running work (a slice, a deploy, anything over a few minutes) gets `--tab`, a new tab in this workspace. Split panes are for short tasks only (Mike, 2026-10-20). Small fixes lane: split by surface, run in parallel, verify once per batch, no brief or report. Fable above low or Opus above xhigh needs Mike's approval first.
